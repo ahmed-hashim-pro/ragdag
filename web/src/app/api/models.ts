@@ -161,6 +161,7 @@ export interface UsageOut {
   input_tokens: number;
   output_tokens: number;
   cache_read_input_tokens: number;
+  cost_usd: number;
   documents: number;
   chunks: number;
 }
@@ -424,6 +425,8 @@ export interface MessageUsage {
   output_tokens?: number;
   cache_read_input_tokens?: number;
   cache_creation_input_tokens?: number;
+  /** Estimated USD at the server's configured token prices (absent on older answers). */
+  cost_usd?: number;
 }
 
 export interface MessageOut {

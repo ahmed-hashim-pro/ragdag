@@ -152,3 +152,30 @@ def retrieve(
         best_similarity=max(sims.values(), default=0.0),
         lexical_hits=len(lexical),
     )
+
+
+def retrieve_for_turn(
+    session: Session,
+    collection_id: uuid.UUID,
+    question: str,
+    previous_question: str | None,
+    top_k: int,
+) -> RetrievalResult:
+    """Retrieve for a chat turn. The question alone leads; context only adds a few passages.
+
+    A follow-up like "and the second one?" needs the previous question to retrieve
+    anything, but a self-contained question must not have its passages crowded out by
+    the previous topic, so the combined query contributes at most a quarter of the slots.
+    """
+    primary = retrieve(session, collection_id, question, top_k)
+    if not previous_question:
+        return primary
+    combined = retrieve(session, collection_id, f"{previous_question}\n{question}", top_k)
+    seen = {c.chunk_id for c in primary.chunks}
+    extra = [c for c in combined.chunks if c.chunk_id not in seen][: max(2, top_k // 4)]
+    keep = primary.chunks[: max(top_k - len(extra), 0)]
+    return RetrievalResult(
+        chunks=keep + extra,
+        best_similarity=max(primary.best_similarity, combined.best_similarity),
+        lexical_hits=max(primary.lexical_hits, combined.lexical_hits),
+    )

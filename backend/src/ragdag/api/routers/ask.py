@@ -31,7 +31,7 @@ from ragdag.api.schemas import (
 from ragdag.collection_settings import CollectionSettings
 from ragdag.db import get_session, session_scope
 from ragdag.models import Collection, Conversation, Message, WorkspaceSecret
-from ragdag.retrieval import retrieve
+from ragdag.retrieval import retrieve, retrieve_for_turn
 from ragdag.security import VaultError, decrypt_secret
 from ragdag.settings import get_settings
 
@@ -152,15 +152,16 @@ async def ask(
         history.pop()
 
     question = body.question.strip()
-    # Follow-ups ("and the second one?") retrieve better with the previous question attached.
-    retrieval_query = f"{history[-2][1]}\n{question}" if history else question
+    previous_question = history[-2][1] if history else None
 
     user_msg = Message(conversation_id=conv.id, role="user", content=question)
     session.add(user_msg)
     session.commit()
     conv_id, user_msg_id = conv.id, user_msg.id
 
-    result = await run_in_threadpool(retrieve, session, coll.id, retrieval_query, settings.top_k)
+    result = await run_in_threadpool(
+        retrieve_for_turn, session, coll.id, question, previous_question, settings.top_k
+    )
     session.rollback()
     chunks = result.chunks
     confident = result.is_confident(settings.similarity_floor)

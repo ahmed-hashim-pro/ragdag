@@ -154,6 +154,7 @@ class UsageOut(BaseModel):
     input_tokens: int
     output_tokens: int
     cache_read_input_tokens: int
+    cost_usd: float
     documents: int
     chunks: int
 

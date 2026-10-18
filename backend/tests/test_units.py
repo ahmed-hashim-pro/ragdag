@@ -163,3 +163,11 @@ def test_pdf_title_becomes_heading_root():
     buf = io.BytesIO()
     writer.write(buf)
     assert extract_text(buf.getvalue(), "application/pdf").startswith("# Maintenance Schedule")
+
+
+def test_cost_estimate_uses_configured_prices():
+    from ragdag.settings import get_settings
+
+    usage = {"input_tokens": 2181, "output_tokens": 290}
+    assert get_settings().cost_usd(usage) == round(2181 * 4 / 1e6 + 290 * 20 / 1e6, 6)
+    assert get_settings().cost_usd({"cache_read_input_tokens": 1_000_000}) == 0.2

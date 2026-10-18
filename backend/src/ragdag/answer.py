@@ -184,6 +184,7 @@ async def stream_answer(
         "cache_read_input_tokens": getattr(usage, "cache_read_input_tokens", 0) or 0,
         "cache_creation_input_tokens": getattr(usage, "cache_creation_input_tokens", 0) or 0,
     }
+    usage_data["cost_usd"] = settings.cost_usd(usage_data)
 
     if final.stop_reason == "refusal":
         category = getattr(final.stop_details, "category", None) if final.stop_details else None

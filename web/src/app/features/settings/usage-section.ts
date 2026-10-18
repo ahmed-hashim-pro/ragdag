@@ -5,7 +5,7 @@ import { apiErrorMessage } from '../../api/errors';
 import { UsageOut } from '../../api/models';
 import { WorkspacesApi } from '../../api/workspaces.service';
 import { WorkspaceContext } from '../../core/workspace-context';
-import { formatNumber, inputValue } from '../../shared/format';
+import { formatNumber, formatUsd, inputValue } from '../../shared/format';
 
 @Component({
   selector: 'app-usage-section',
@@ -59,6 +59,7 @@ export class UsageSection implements OnInit {
       { label: 'Input tokens', value: n(u.input_tokens) },
       { label: 'Output tokens', value: n(u.output_tokens) },
       { label: 'Cached input tokens', value: n(u.cache_read_input_tokens) },
+      { label: 'Estimated cost', value: formatUsd(u.cost_usd) },
       { label: 'Documents', value: n(u.documents) },
       { label: 'Chunks', value: n(u.chunks) },
     ];

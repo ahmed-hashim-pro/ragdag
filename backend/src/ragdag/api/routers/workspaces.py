@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 import anthropic
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import Integer, case, cast, delete, func, select
+from sqlalchemy import Integer, Numeric, case, cast, delete, func, select
 from sqlalchemy.orm import Session
 
 from ragdag.answer import check_api_key
@@ -451,6 +451,7 @@ def usage(
             tokens("input_tokens"),
             tokens("output_tokens"),
             tokens("cache_read_input_tokens"),
+            func.coalesce(func.sum(cast(Message.usage["cost_usd"].astext, Numeric)), 0),
         )
         .join(Conversation, Conversation.id == Message.conversation_id)
         .where(
@@ -473,6 +474,7 @@ def usage(
         input_tokens=row[4],
         output_tokens=row[5],
         cache_read_input_tokens=row[6],
+        cost_usd=round(float(row[7]), 4),
         documents=docs,
         chunks=chunks,
     )

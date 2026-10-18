@@ -62,3 +62,10 @@ export function inputValue(event: Event): string {
 export function inputChecked(event: Event): boolean {
   return (event.target as HTMLInputElement).checked;
 }
+
+/** Dollar amounts: cents precision normally, more digits for sub-cent costs. */
+export function formatUsd(n: number | null | undefined): string {
+  if (n === null || n === undefined) return '—';
+  if (n === 0) return '$0';
+  return n < 0.01 ? `$${n.toFixed(4)}` : `$${n.toFixed(n < 1 ? 3 : 2)}`;
+}

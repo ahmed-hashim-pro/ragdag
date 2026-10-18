@@ -400,3 +400,44 @@ def test_conversations_are_private_to_their_user(client, owner, indexed, with_ke
 def test_audit_log_records_actions(owner, indexed):
     actions = [e["action"] for e in owner.get(f"/api/w/{owner.ws}/audit").json()]
     assert "document.upload" in actions and "collection.create" in actions
+
+
+def test_follow_up_question_is_not_crowded_out_by_previous_topic(owner, indexed):
+    from ragdag.db import session_scope
+    from ragdag.retrieval import retrieve_for_turn
+
+    coll, _, _ = indexed
+    with session_scope() as s:
+        result = retrieve_for_turn(
+            s,
+            coll["id"],
+            "What does error code E-417 mean?",
+            "How long does the robot run on one charge?",
+            top_k=2,
+        )
+    assert result.chunks[0].heading.endswith("Safety")
+
+
+def test_usage_reports_cost(owner, indexed, with_key, monkeypatch):
+    coll, _, _ = indexed
+
+    async def fake_stream(**_):
+        usage = {"input_tokens": 2000, "output_tokens": 300, "cost_usd": 0.014}
+        yield AnswerEvent(
+            "done",
+            {
+                "status": "ok",
+                "answer": "x [1]",
+                "used": [1],
+                "usage": usage,
+                "model": "claude-opus-5-5",
+            },
+        )
+
+    import ragdag.api.routers.ask as ask_router
+
+    monkeypatch.setattr(ask_router, "stream_answer", fake_stream)
+    owner.post(
+        f"/api/w/{owner.ws}/ask", json={"question": "battery hours", "collection_id": coll["id"]}
+    )
+    assert owner.get(f"/api/w/{owner.ws}/usage").json()["cost_usd"] == 0.014

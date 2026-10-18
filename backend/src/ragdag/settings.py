@@ -38,10 +38,27 @@ class Settings(BaseSettings):
 
     claude_model: str = "claude-opus-5-5"
     claude_max_tokens: int = 16000
+    # USD per million tokens, used for the cost shown per answer and in usage.
+    # Defaults are Claude Opus 5.5 list prices; change them with the model.
+    price_input_per_mtok: float = 4.0
+    price_output_per_mtok: float = 20.0
+    price_cache_write_per_mtok: float = 5.0
+    price_cache_read_per_mtok: float = 0.20
     login_rate_per_minute: int = 10
     ask_rate_per_minute: int = 30
 
     cors_origins: list[str] = Field(default_factory=list)
+
+    def cost_usd(self, usage: dict) -> float:
+        """Estimated cost of one request from its token counts."""
+        per = 1_000_000
+        return round(
+            usage.get("input_tokens", 0) * self.price_input_per_mtok / per
+            + usage.get("output_tokens", 0) * self.price_output_per_mtok / per
+            + usage.get("cache_creation_input_tokens", 0) * self.price_cache_write_per_mtok / per
+            + usage.get("cache_read_input_tokens", 0) * self.price_cache_read_per_mtok / per,
+            6,
+        )
 
     @property
     def uploads_dir(self) -> Path:

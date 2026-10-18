@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { RouterLink } from '@angular/router';
 
 import { Badge } from '../../shared/badge';
-import { formatDuration, formatNumber } from '../../shared/format';
+import { formatDuration, formatNumber, formatUsd } from '../../shared/format';
 import { MarkdownView } from '../../shared/markdown-view';
 import { ChatMessage } from './chat-types';
 
@@ -95,7 +95,8 @@ export class ChatMessageView {
   protected readonly tokens = computed(() => {
     const u = this.message().usage;
     if (!u || (!u.input_tokens && !u.output_tokens)) return '';
-    return `${formatNumber(u.input_tokens ?? 0)} in · ${formatNumber(u.output_tokens ?? 0)} out tokens`;
+    const tokens = `${formatNumber(u.input_tokens ?? 0)} in · ${formatNumber(u.output_tokens ?? 0)} out tokens`;
+    return typeof u.cost_usd === 'number' ? `${tokens} · ≈ ${formatUsd(u.cost_usd)}` : tokens;
   });
 
   protected readonly latency = computed(() => formatDuration((this.message().latencyMs ?? 0) / 1000));
