@@ -148,3 +148,18 @@ def test_source_guards():
     with pytest.raises(SourceError):
         resolve_folder("../../etc")
     assert resolve_folder("team/docs").name == "docs"
+
+
+def test_pdf_title_becomes_heading_root():
+    import io
+
+    from pypdf import PdfWriter
+
+    from ragdag.ingest.extract import extract_text
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    writer.add_metadata({"/Title": "Maintenance Schedule"})
+    buf = io.BytesIO()
+    writer.write(buf)
+    assert extract_text(buf.getvalue(), "application/pdf").startswith("# Maintenance Schedule")

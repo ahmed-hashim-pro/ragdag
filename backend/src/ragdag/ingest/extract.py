@@ -47,6 +47,10 @@ def _pdf_to_markdown(data: bytes) -> str:
 
     reader = PdfReader(io.BytesIO(data))
     parts: list[str] = []
+    # The embedded title becomes the document title and the root of every heading path.
+    title = ((reader.metadata.title if reader.metadata else None) or "").strip()
+    if title:
+        parts.append(f"# {title}")
     for number, page in enumerate(reader.pages, start=1):
         text = (page.extract_text() or "").strip()
         if text:
