@@ -82,7 +82,7 @@ export class InvitePage implements OnInit {
     try {
       const me = await firstValueFrom(this.auth.acceptInvite({ token: this.token() }));
       this.toast.success(`You joined ${this.preview()?.workspace_name ?? 'the workspace'}.`);
-      const ws = me.memberships.find((m) => m.workspace_name === this.preview()?.workspace_name) ?? me.memberships.at(-1);
+      const ws = me.memberships.find((m) => m.workspace_id === this.preview()?.workspace_id) ?? me.memberships.at(-1);
       await this.router.navigate(ws ? ['/w', ws.workspace_id, 'ask'] : ['/']);
     } catch (e) {
       this.error.set(apiErrorMessage(e));

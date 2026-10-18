@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg17
+        env:
+          POSTGRES_USER: ragdag
+          POSTGRES_PASSWORD: ragdag
+          POSTGRES_DB: ragdag
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ragdag" --health-interval 5s --health-retries 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      RAGDAG_TEST_ADMIN_URL: postgresql+psycopg://ragdag:ragdag@localhost:5432/ragdag
+      RAGDAG_TEST_EMBED_CACHE: ${{ github.workspace }}/.cache/fastembed
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/cache@v4
+        with:
+          path: .cache/fastembed
+          key: fastembed-all-MiniLM-L6-v2
+      - run: uv venv -p 3.12 .venv && uv pip install -p .venv -e '.[api,dev]'
+      - run: .venv/bin/ruff check src tests && .venv/bin/ruff format --check src tests
+      - run: .venv/bin/pytest -q -p no:logging
+
+  dags:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f airflow/Dockerfile -t ragdag-airflow:ci .
+      - run: >
+          docker run --rm --entrypoint python -v $PWD/airflow/tests:/tests:ro
+          -e AIRFLOW__CORE__LOAD_EXAMPLES=false
+          -e RAGDAG_DATABASE_URL=postgresql+psycopg://x:x@localhost/x
+          ragdag-airflow:ci /tests/test_dags.py
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm test -- --watch=false
+      - run: npm run build
+
+  images:
+    runs-on: ubuntu-latest
+    needs: [backend, dags, web]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t ragdag-api:ci backend
+      - run: docker build -t ragdag-web:ci web

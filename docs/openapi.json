@@ -3447,6 +3447,11 @@
    },
    "InvitePreviewOut": {
     "properties": {
+     "workspace_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Workspace Id"
+     },
      "workspace_name": {
       "type": "string",
       "title": "Workspace Name"
@@ -3465,6 +3470,7 @@
     },
     "type": "object",
     "required": [
+     "workspace_id",
      "workspace_name",
      "email",
      "role",

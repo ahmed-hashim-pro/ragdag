@@ -16,6 +16,8 @@
 }
 .dag {
   display: block;
+  width: 100%;
+  height: auto;
   margin: 0 auto;
   font-family: var(--font);
 }

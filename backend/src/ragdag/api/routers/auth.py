@@ -121,7 +121,11 @@ def invite_preview(token: str, session: Session = Depends(get_session)) -> Invit
     ws = session.get(Workspace, invite.workspace_id)
     user_exists = session.scalar(select(User.id).where(User.email == invite.email)) is not None
     return InvitePreviewOut(
-        workspace_name=ws.name, email=invite.email, role=invite.role, user_exists=user_exists
+        workspace_id=ws.id,
+        workspace_name=ws.name,
+        email=invite.email,
+        role=invite.role,
+        user_exists=user_exists,
     )
 
 

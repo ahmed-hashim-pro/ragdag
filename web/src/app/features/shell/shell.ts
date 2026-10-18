@@ -52,7 +52,19 @@ const NEW_WS = '__new__';
       <span class="spacer"></span>
 
       <button type="button" class="btn btn-ghost btn-icon" (click)="theme.cycle()" [attr.aria-label]="themeLabel()" [title]="themeLabel()">
-        <span aria-hidden="true">{{ themeIcon() }}</span>
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          @switch (theme.mode()) {
+            @case ('light') {
+              <circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+            }
+            @case ('dark') {
+              <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+            }
+            @default {
+              <circle cx="12" cy="12" r="9" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" />
+            }
+          }
+        </svg>
       </button>
       <a class="btn btn-ghost user" [routerLink]="['/account']" routerLinkActive="active" [attr.aria-label]="'Account: ' + (auth.user()?.name ?? '')">
         <span class="avatar" aria-hidden="true">{{ initials() }}</span>
@@ -104,7 +116,6 @@ export class Shell {
     return (parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : name.slice(0, 2)).toUpperCase() || '?';
   });
 
-  protected readonly themeIcon = computed(() => ({ system: '◐', light: '☀', dark: '☾' })[this.theme.mode()]);
   protected readonly themeLabel = computed(() => `Theme: ${this.theme.mode()} (click to change)`);
 
   protected switchWorkspace(event: Event): void {

@@ -1,59 +1,18 @@
-# Web
+# ragdag web
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.2.3.
-
-## Development server
-
-To start a local development server, run:
+Angular 22 single-page app for ragdag (standalone components, signals, zoneless, no UI kit).
 
 ```bash
-ng serve
+source ~/.nvm/nvm.sh && nvm use 22.23.3
+npm ci
+npm start                     # ng serve on :4200, proxies /api → http://127.0.0.1:8000 (proxy.conf.json)
+npm run build                 # production build → dist/web/browser (serve with SPA fallback to index.html)
+npm test -- --watch=false     # unit tests (Vitest + jsdom, headless)
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Layout of `src/app`:
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- `api/` — typed models mirroring `docs/openapi.json`, one service per API area, the fetch-based SSE client for `/ask`.
+- `core/` — auth (in-memory access token, refresh cookie, interceptor, guards), workspace context/roles, toasts, theme, progress bar.
+- `shared/` — markdown renderer (escapes everything, emits a fixed tag set), SSE parser, dialogs/drawers, badges, formatting.
+- `features/` — lazy-loaded pages: auth (login / invite), shell, ask, collections (+ tabs), pipelines (DAG graph), settings, account.

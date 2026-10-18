@@ -63,6 +63,7 @@ class MeOut(BaseModel):
 
 
 class InvitePreviewOut(BaseModel):
+    workspace_id: uuid.UUID
     workspace_name: str
     email: str
     role: Role

@@ -179,6 +179,8 @@ kbd {
 
 .sr-only {
   position: absolute;
+  left: 0;
+  top: 0;
   width: 1px;
   height: 1px;
   padding: 0;
@@ -614,6 +616,7 @@ kbd {
 /* ------------------------------------------------------------------ tables */
 
 .table-wrap {
+  position: relative;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -769,6 +772,7 @@ kbd {
   opacity: 0;
   transition: opacity 0.2s;
   overflow: hidden;
+  contain: strict;
 }
 .progress::after {
   content: '';

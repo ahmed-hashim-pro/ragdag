@@ -26,7 +26,7 @@ const KNOWN_STATES = new Set([
   styleUrl: './dag-graph.css',
   template: `
     <div class="dag-scroll">
-      <svg class="dag" [attr.width]="layout().width" [attr.height]="layout().height"
+      <svg class="dag" [style.max-width.px]="layout().width" [style.min-width.px]="layout().width * 0.6"
         [attr.viewBox]="'0 0 ' + layout().width + ' ' + layout().height" role="group" aria-label="Pipeline task graph">
         <defs>
           <marker id="dag-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">

@@ -84,6 +84,7 @@ export interface AcceptInviteIn {
 }
 
 export interface InvitePreviewOut {
+  workspace_id: Uuid;
   workspace_name: string;
   email: string;
   role: Role;
