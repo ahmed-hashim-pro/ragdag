@@ -14,7 +14,7 @@ import json
 import shutil
 import uuid
 from dataclasses import asdict
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy import delete, func, insert, select, update
@@ -220,11 +220,54 @@ def _mark_run(session, dag_run_id: str, state: str, error: str | None = None) ->
 
 
 def documents_for_reindex(collection_id: str) -> list[dict]:
+    """Every live document of a collection, flagged pending so the UI shows the re-index."""
     with session_scope() as session:
         rows = session.execute(
-            select(Document.id, Document.sha256).where(
+            update(Document)
+            .where(
                 Document.collection_id == uuid.UUID(collection_id),
                 Document.status != DocumentStatus.deleted,
             )
+            .values(status=DocumentStatus.pending, error=None)
+            .returning(Document.id, Document.sha256)
         ).all()
     return [{"document_id": str(r.id), "sha256": r.sha256} for r in rows]
+
+
+def orphaned_pending(min_age_minutes: int = 10) -> list[dict]:
+    """Pending documents whose ingest run never started (Airflow was down, trigger lost)."""
+    cutoff = datetime.now(UTC) - timedelta(minutes=min_age_minutes)
+    active = select(PipelineRun.document_id).where(
+        PipelineRun.document_id.is_not(None), PipelineRun.state.in_(["queued", "running"])
+    )
+    with session_scope() as session:
+        rows = session.execute(
+            select(Document.id, Document.sha256).where(
+                Document.status == DocumentStatus.pending,
+                Document.updated_at < cutoff,
+                Document.id.not_in(active),
+            )
+        ).all()
+    return [{"document_id": str(r.id), "sha256": r.sha256} for r in rows]
+
+
+def mark_running(dag_run_id: str) -> None:
+    with session_scope() as session:
+        session.execute(
+            update(PipelineRun)
+            .where(PipelineRun.dag_run_id == dag_run_id, PipelineRun.state == "queued")
+            .values(state="running", started_at=datetime.now(UTC))
+        )
+
+
+def finish_run(dag_run_id: str, state: str, error: str | None = None) -> None:
+    """Final state from a DAG callback; never overrides a state a task already recorded."""
+    with session_scope() as session:
+        session.execute(
+            update(PipelineRun)
+            .where(
+                PipelineRun.dag_run_id == dag_run_id,
+                PipelineRun.state.in_(["queued", "running"]),
+            )
+            .values(state=state, ended_at=datetime.now(UTC), error=error and error[:2000])
+        )

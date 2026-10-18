@@ -417,7 +417,7 @@ async def create_source(
         if body.kind == "url":
             if not body.url:
                 raise SourceError("url is required")
-            config = {"url": validate_url(body.url.strip())}
+            config = {"url": validate_url(body.url.strip(), resolve=True)}
         else:
             if not body.path:
                 raise SourceError("path is required")

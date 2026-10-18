@@ -1,0 +1,57 @@
+.create {
+  margin-bottom: 24px;
+  max-width: 640px;
+}
+.grid-cards {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.coll {
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.coll:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow);
+}
+.coll-link {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 18px 12px;
+  color: inherit;
+  text-decoration: none !important;
+  flex: 1;
+}
+.coll-name {
+  font-size: 1.05rem;
+}
+.coll-desc {
+  font-size: 0.9rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.coll-stats {
+  display: flex;
+  gap: 20px;
+  margin: 8px 0 0;
+}
+.coll-stats dt {
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+.coll-stats dd {
+  margin: 0;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.coll-actions {
+  display: flex;
+  gap: 6px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+}

@@ -1,0 +1,84 @@
+.drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 22px 16px;
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+  text-align: center;
+  transition: border-color 0.12s, background 0.12s;
+}
+.drop-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.drop-icon {
+  font-size: 1.4rem;
+  color: var(--accent);
+}
+.drop:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.uploads {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.upload-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow: auto;
+}
+.upload {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+}
+.upload-name {
+  font-weight: 550;
+  font-size: 0.9rem;
+}
+.upload[data-state='done'] .upload-status {
+  color: var(--success);
+}
+.upload[data-state='duplicate'] .upload-status {
+  color: var(--warning);
+}
+.upload[data-state='error'] .upload-status,
+.upload[data-state='error'] .upload-msg {
+  color: var(--danger);
+}
+.upload-msg {
+  margin-top: 4px;
+  color: var(--fg-muted);
+}
+.bar {
+  width: 100%;
+  height: 6px;
+  margin-top: 6px;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg-sunken);
+}
+.bar::-webkit-progress-bar {
+  background: var(--bg-sunken);
+}
+.bar::-webkit-progress-value {
+  background: var(--accent);
+  transition: width 0.2s;
+}
+.bar::-moz-progress-bar {
+  background: var(--accent);
+}

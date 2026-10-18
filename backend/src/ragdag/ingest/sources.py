@@ -56,10 +56,12 @@ def _check_public_host(host: str) -> None:
             raise SourceError(f"{host} resolves to a non-public address ({ip}); refused")
 
 
-def validate_url(url: str) -> str:
+def validate_url(url: str, resolve: bool = False) -> str:
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https") or not parts.hostname:
         raise SourceError("only absolute http(s) URLs are allowed")
+    if resolve:
+        _check_public_host(parts.hostname)
     return url
 
 

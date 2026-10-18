@@ -1,0 +1,49 @@
+.kind {
+  display: flex;
+  gap: 18px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  flex-wrap: wrap;
+}
+.kind legend {
+  margin-bottom: 6px;
+  width: 100%;
+}
+.sources {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+@media (max-width: 400px) {
+  .sources {
+    grid-template-columns: 1fr;
+  }
+}
+.src {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.src-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0;
+}
+.src-meta dt {
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+}
+.src-meta dd {
+  margin: 2px 0 0;
+}
+.src-actions {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}

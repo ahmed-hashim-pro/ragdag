@@ -1,0 +1,36 @@
+:host {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 24px 16px;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, var(--accent-soft), transparent 60%),
+    var(--bg);
+}
+.auth-card {
+  width: min(420px, 100%);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.auth-brand svg {
+  flex: none;
+}
+.auth-foot {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--fg-muted);
+}
+@media (max-width: 400px) {
+  .auth-card {
+    padding: 20px 16px;
+  }
+}

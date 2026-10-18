@@ -54,7 +54,13 @@ def run_migrations() -> None:
     from alembic import command
     from alembic.config import Config
 
-    cfg = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+    # Source checkout (backend/migrations) or the image's working directory (/app/migrations).
+    candidates = [Path(__file__).resolve().parents[3] / "migrations", Path.cwd() / "migrations"]
+    script_location = next((p for p in candidates if (p / "env.py").exists()), None)
+    if script_location is None:
+        raise RuntimeError("alembic migrations directory not found")
+    cfg = Config()
+    cfg.set_main_option("script_location", str(script_location))
     with get_engine().begin() as conn:
         conn.execute(text("SELECT pg_advisory_lock(7741000)"))
         try:

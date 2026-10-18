@@ -1,0 +1,207 @@
+# ragdag production stack for a single host (ubuntu-hub).
+#   ./scripts/init-env.sh      # once: generates .env with fresh secrets
+#   ./scripts/make-certs.sh    # once: TLS certificate for nginx
+#   docker compose up -d --build
+# Web UI: https://<host>:${RAGDAG_HTTPS_PORT:-8443}   Airflow UI: same origin under /airflow/
+
+x-airflow: &airflow
+  build:
+    context: .
+    dockerfile: airflow/Dockerfile
+  image: ragdag-airflow:${RAGDAG_VERSION:-latest}
+  restart: unless-stopped
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__PARALLELISM: "8"
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD}@db/airflow
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+    AIRFLOW__API__BASE_URL: ${RAGDAG_PUBLIC_URL}/airflow
+    AIRFLOW__API__EXPOSE_CONFIG: "false"
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/airflow/execution/
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET}
+    AIRFLOW__API_AUTH__JWT_ISSUER: ragdag-airflow
+    AIRFLOW__FAB__AUTH_RATE_LIMITED: "true"
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+    AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
+    # The DAG tasks reach the app database through the ragdag package.
+    RAGDAG_DATABASE_URL: postgresql+psycopg://ragdag:${POSTGRES_PASSWORD}@db/ragdag
+    RAGDAG_DATA_DIR: /data
+  volumes:
+    - ragdag-data:/data
+    - ${RAGDAG_SOURCES_DIR:-./data/sources}:/data/sources:ro
+    - airflow-logs:/opt/airflow/logs
+  user: "50000:0"
+  depends_on: &airflow-depends
+    db:
+      condition: service_healthy
+    data-perms:
+      condition: service_completed_successfully
+    airflow-init:
+      condition: service_completed_successfully
+
+services:
+  # One-shot: the shared data volume belongs to uid 50000, which both the API and
+  # the Airflow containers run as.
+  data-perms:
+    image: alpine:3.22
+    restart: "no"
+    volumes:
+      - ragdag-data:/data
+    command: ["sh", "-c", "mkdir -p /data/uploads /data/staging && chown -R 50000:0 /data/uploads /data/staging && chmod -R u+rwX,g+rwX /data/uploads /data/staging"]
+
+  db:
+    image: pgvector/pgvector:0.8.7-pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ragdag
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ragdag
+      AIRFLOW_DB_PASSWORD: ${AIRFLOW_DB_PASSWORD}
+    command: >
+      postgres -c shared_buffers=512MB -c effective_cache_size=2GB
+      -c maintenance_work_mem=256MB -c max_connections=200
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./deploy/postgres/init.sh:/docker-entrypoint-initdb.d/10-init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ragdag -d ragdag"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    mem_limit: 2g
+
+  api:
+    build: backend
+    image: ragdag-api:${RAGDAG_VERSION:-latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      RAGDAG_DATABASE_URL: postgresql+psycopg://ragdag:${POSTGRES_PASSWORD}@db/ragdag
+      RAGDAG_DATA_DIR: /data
+      RAGDAG_AIRFLOW_URL: http://airflow-apiserver:8080/airflow
+      RAGDAG_AIRFLOW_USERNAME: ragdag-service
+      RAGDAG_AIRFLOW_PASSWORD: ${AIRFLOW_SERVICE_PASSWORD}
+    user: "50000:0"
+    volumes:
+      - ragdag-data:/data
+      - ${RAGDAG_SOURCES_DIR:-./data/sources}:/data/sources:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      data-perms:
+        condition: service_completed_successfully
+    mem_limit: 2g
+
+  web:
+    build: web
+    image: ragdag-web:${RAGDAG_VERSION:-latest}
+    restart: unless-stopped
+    ports:
+      - "${RAGDAG_HTTPS_PORT:-8443}:443"
+      - "${RAGDAG_HTTP_PORT:-8088}:80"
+    environment:
+      RAGDAG_HTTPS_PORT: ${RAGDAG_HTTPS_PORT:-8443}
+    volumes:
+      - ./deploy/nginx/ragdag.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./deploy/certs:/etc/nginx/certs:ro
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "--no-check-certificate", "https://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+    mem_limit: 256m
+
+  airflow-init:
+    <<: *airflow
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: /bin/bash
+    environment:
+      <<: *airflow-env
+      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
+      AIRFLOW_SERVICE_PASSWORD: ${AIRFLOW_SERVICE_PASSWORD}
+    command:
+      - -c
+      - |
+        set -euo pipefail
+        airflow db migrate
+        upsert_user() {  # username role password
+          if airflow users list -o plain | awk '{print $$2}' | grep -qx "$$1"; then
+            airflow users reset-password --username "$$1" --password "$$3" >/dev/null
+          else
+            airflow users create --username "$$1" --role "$$2" --password "$$3" \
+              --firstname "$$1" --lastname ragdag --email "$$1@ragdag.local" >/dev/null
+          fi
+        }
+        upsert_user admin Admin "$$AIRFLOW_ADMIN_PASSWORD"
+        upsert_user ragdag-service Op "$$AIRFLOW_SERVICE_PASSWORD"
+        airflow pools set embedding 2 "Concurrent embedding tasks"
+        echo "airflow init done"
+
+  airflow-apiserver:
+    <<: *airflow
+    command: api-server
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/airflow/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    mem_limit: 1536m
+
+  airflow-scheduler:
+    <<: *airflow
+    command: scheduler
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      <<: *airflow-depends
+      airflow-apiserver:
+        condition: service_healthy
+    # LocalExecutor runs the tasks here, including embedding: give it the most memory.
+    mem_limit: 3g
+
+  airflow-dag-processor:
+    <<: *airflow
+    command: dag-processor
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"']
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 60s
+    mem_limit: 1g
+
+  backup:
+    image: pgvector/pgvector:0.8.7-pg17
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: ragdag
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      BACKUP_HOUR: ${BACKUP_HOUR:-2}
+    volumes:
+      - ./deploy/backup.sh:/backup.sh:ro
+      - ${RAGDAG_BACKUP_DIR:-./backups}:/backups
+    entrypoint: ["/bin/bash", "/backup.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 512m
+
+volumes:
+  pg-data:
+  ragdag-data:
+  airflow-logs:
