@@ -9,7 +9,7 @@ import { ApiError, detailMessage } from './errors';
 import { API, params } from './http-context';
 import { AskEvent, AskIn, ConversationDetailOut, ConversationOut } from './models';
 
-const ASK_EVENTS = new Set(['meta', 'sources', 'delta', 'reset', 'done', 'error']);
+const ASK_EVENTS = new Set(['meta', 'plan', 'sources', 'delta', 'reset', 'done', 'error']);
 
 /** Decode one SSE message into a typed ask event; unknown events and bad JSON yield null. */
 export function parseAskEvent(msg: SseMessage): AskEvent | null {

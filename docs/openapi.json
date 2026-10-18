@@ -3137,6 +3137,16 @@
       ],
       "title": "Effort",
       "default": "medium"
+     },
+     "rewrite_queries": {
+      "type": "boolean",
+      "title": "Rewrite Queries",
+      "default": true
+     },
+     "rerank": {
+      "type": "boolean",
+      "title": "Rerank",
+      "default": true
      }
     },
     "type": "object",
@@ -3959,6 +3969,17 @@
      "lexical": {
       "type": "boolean",
       "title": "Lexical"
+     },
+     "rerank_score": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rerank Score"
      }
     },
     "type": "object",
@@ -3993,6 +4014,11 @@
       "minimum": 1.0,
       "title": "Top K",
       "default": 8
+     },
+     "rewrite": {
+      "type": "boolean",
+      "title": "Rewrite",
+      "default": false
      }
     },
     "type": "object",
@@ -4018,6 +4044,21 @@
      "confident": {
       "type": "boolean",
       "title": "Confident"
+     },
+     "reranked": {
+      "type": "boolean",
+      "title": "Reranked",
+      "default": false
+     },
+     "plan": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SearchPlanOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
      }
     },
     "type": "object",
@@ -4027,6 +4068,37 @@
      "confident"
     ],
     "title": "SearchOut"
+   },
+   "SearchPlanOut": {
+    "properties": {
+     "intent": {
+      "type": "string",
+      "title": "Intent"
+     },
+     "query": {
+      "type": "string",
+      "title": "Query"
+     },
+     "keywords": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Keywords"
+     },
+     "cost_usd": {
+      "type": "number",
+      "title": "Cost Usd"
+     }
+    },
+    "type": "object",
+    "required": [
+     "intent",
+     "query",
+     "keywords",
+     "cost_usd"
+    ],
+    "title": "SearchPlanOut"
    },
    "SourceIn": {
     "properties": {
@@ -4395,6 +4467,10 @@
       "type": "integer",
       "title": "Cache Read Input Tokens"
      },
+     "cost_usd": {
+      "type": "number",
+      "title": "Cost Usd"
+     },
      "documents": {
       "type": "integer",
       "title": "Documents"
@@ -4413,6 +4489,7 @@
      "input_tokens",
      "output_tokens",
      "cache_read_input_tokens",
+     "cost_usd",
      "documents",
      "chunks"
     ],

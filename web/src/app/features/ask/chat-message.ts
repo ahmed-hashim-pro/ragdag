@@ -22,6 +22,16 @@ import { ChatMessage } from './chat-types';
       <div class="msg msg-assistant" [class.selected]="selected()" [attr.aria-busy]="m.status === 'streaming'"
         [attr.aria-live]="m.status === 'streaming' ? 'polite' : null">
         <h3 class="sr-only">Answer</h3>
+        @if (searched(); as q) {
+          <p class="searched small muted" title="How your question was searched">
+            @if (q.intent === 'overview') {
+              Overview of the whole collection
+            } @else {
+              Searched for “{{ q.query }}”
+              @if (q.keywords.length) {<span> · exact: {{ q.keywords.join(', ') }}</span>}
+            }
+          </p>
+        }
         @if (statusBadge(); as s) {
           <div class="row gap-sm status"><app-badge [value]="s" [dot]="true" [text]="statusText()" /></div>
         }
@@ -69,6 +79,13 @@ export class ChatMessageView {
   readonly wsId = input.required<string>();
   readonly cite = output<number>();
   readonly showSources = output<void>();
+
+  /** The planner's rewrite, shown only when it differs from what was typed. */
+  protected readonly searched = computed(() => {
+    const search = this.message().usage?.search;
+    if (!search?.planned || search.intent === 'chitchat') return null;
+    return search;
+  });
 
   protected readonly citationSet = computed(() => new Set(this.message().sources.map((s) => s.n)));
 

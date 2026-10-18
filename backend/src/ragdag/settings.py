@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     price_output_per_mtok: float = 20.0
     price_cache_write_per_mtok: float = 5.0
     price_cache_read_per_mtok: float = 0.20
+    # Query planning (rewrite + intent) runs on a small model at low effort.
+    planner_model: str = "claude-haiku-5-5"
+    planner_price_input_per_mtok: float = 0.10
+    planner_price_output_per_mtok: float = 0.50
+    reranker_model: str = "Xenova/ms-marco-MiniLM-L-12-v2"
     login_rate_per_minute: int = 10
     ask_rate_per_minute: int = 30
 
@@ -57,6 +62,16 @@ class Settings(BaseSettings):
             + usage.get("output_tokens", 0) * self.price_output_per_mtok / per
             + usage.get("cache_creation_input_tokens", 0) * self.price_cache_write_per_mtok / per
             + usage.get("cache_read_input_tokens", 0) * self.price_cache_read_per_mtok / per,
+            6,
+        )
+
+    def planner_cost_usd(self, input_tokens: int, output_tokens: int) -> float:
+        return round(
+            (
+                input_tokens * self.planner_price_input_per_mtok
+                + output_tokens * self.planner_price_output_per_mtok
+            )
+            / 1_000_000,
             6,
         )
 

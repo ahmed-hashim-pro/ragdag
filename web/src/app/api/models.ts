@@ -181,6 +181,10 @@ export interface CollectionSettings {
   /** 0–1, default 0.25 */
   similarity_floor: number;
   effort: Effort;
+  /** Claude Haiku rewrites each question into a search query first. Default true. */
+  rewrite_queries: boolean;
+  /** A local cross-encoder re-scores the top candidates. Default true. */
+  rerank: boolean;
 }
 
 export const DEFAULT_COLLECTION_SETTINGS: CollectionSettings = {
@@ -189,6 +193,8 @@ export const DEFAULT_COLLECTION_SETTINGS: CollectionSettings = {
   top_k: 8,
   similarity_floor: 0.25,
   effort: 'medium',
+  rewrite_queries: true,
+  rerank: true,
 };
 
 export interface CollectionIn {
@@ -378,6 +384,7 @@ export interface SearchIn {
   query: string;
   collection_id: Uuid;
   top_k?: number;
+  rewrite?: boolean;
 }
 
 export interface SearchHit {
@@ -389,12 +396,15 @@ export interface SearchHit {
   score: number;
   similarity: number | null;
   lexical: boolean;
+  rerank_score?: number | null;
 }
 
 export interface SearchOut {
   hits: SearchHit[];
   best_similarity: number;
   confident: boolean;
+  reranked?: boolean;
+  plan?: { intent: string; query: string; keywords: string[]; cost_usd: number } | null;
 }
 
 export interface AskIn {
@@ -415,7 +425,17 @@ export interface Citation {
   heading: string;
   score: number;
   similarity: number | null;
+  rerank_score?: number | null;
   snippet: string;
+}
+
+/** How the question was searched (sent as the `plan` event and stored on the answer). */
+export interface SearchInfo {
+  planned: boolean;
+  intent: 'lookup' | 'overview' | 'chitchat' | string;
+  query: string;
+  keywords: string[];
+  reranked: boolean;
 }
 
 export type MessageStatus = 'ok' | 'no_evidence' | 'refused' | 'error';
@@ -427,6 +447,8 @@ export interface MessageUsage {
   cache_creation_input_tokens?: number;
   /** Estimated USD at the server's configured token prices (absent on older answers). */
   cost_usd?: number;
+  search?: SearchInfo;
+  planner?: { input_tokens: number; output_tokens: number; cost_usd: number };
 }
 
 export interface MessageOut {
@@ -456,6 +478,7 @@ export interface ConversationDetailOut extends ConversationOut {
 /** Server-sent events emitted by `POST /api/w/{ws}/ask`. */
 export type AskEvent =
   | { event: 'meta'; data: { conversation_id: Uuid; user_message_id: Uuid } }
+  | { event: 'plan'; data: SearchInfo }
   | { event: 'sources'; data: { sources: Citation[] } }
   | { event: 'delta'; data: { text: string } }
   | { event: 'reset'; data: Record<string, never> }

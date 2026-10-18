@@ -72,6 +72,20 @@ function overlapBelowChunk(group: AbstractControl): ValidationErrors | null {
               <span class="hint">Higher effort: more thorough answers, more tokens and latency.</span>
             </label>
           </div>
+          <div class="stack" style="gap: 10px">
+            <label class="row gap-sm" style="align-items: flex-start">
+              <input type="checkbox" formControlName="rewrite_queries" style="margin-top: 3px" />
+              <span><strong>Understand questions first</strong>
+                <span class="hint" style="display: block">Claude Haiku rewrites each question (typos, follow-ups like “and the second one?”,
+                  questions about the whole collection) before searching. Adds well under a cent per question.</span></span>
+            </label>
+            <label class="row gap-sm" style="align-items: flex-start">
+              <input type="checkbox" formControlName="rerank" style="margin-top: 3px" />
+              <span><strong>Re-rank search results</strong>
+                <span class="hint" style="display: block">A local model re-scores the top 30 matches for relevance before the best are sent.
+                  Free; adds a fraction of a second.</span></span>
+            </label>
+          </div>
           @if (chunkingChanged()) {
             <p class="callout" data-tone="warning" role="status">
               Changing chunk size or overlap re-indexes every document in this collection. Answers may be incomplete until the re-index
@@ -125,6 +139,8 @@ export class CollectionSettingsTab {
       top_k: [8, [Validators.required, Validators.min(1), Validators.max(30)]],
       similarity_floor: [0.25, [Validators.required, Validators.min(0), Validators.max(1)]],
       effort: ['medium' as Effort, Validators.required],
+      rewrite_queries: [true],
+      rerank: [true],
     },
     { validators: overlapBelowChunk },
   );
@@ -165,6 +181,8 @@ export class CollectionSettingsTab {
       top_k: Number(v.settings.top_k),
       similarity_floor: Number(v.settings.similarity_floor),
       effort: v.settings.effort,
+      rewrite_queries: v.settings.rewrite_queries,
+      rerank: v.settings.rerank,
     };
     const reindex = this.chunkingChanged();
     if (reindex) {

@@ -334,6 +334,8 @@ class SearchIn(BaseModel):
     query: str = Field(min_length=1, max_length=2000)
     collection_id: uuid.UUID
     top_k: int = Field(8, ge=1, le=30)
+    # Plan the query with Claude Haiku first, as /ask does (needs the workspace API key).
+    rewrite: bool = False
 
 
 class SearchHit(BaseModel):
@@ -345,9 +347,19 @@ class SearchHit(BaseModel):
     score: float
     similarity: float | None
     lexical: bool
+    rerank_score: float | None = None
+
+
+class SearchPlanOut(BaseModel):
+    intent: str
+    query: str
+    keywords: list[str]
+    cost_usd: float
 
 
 class SearchOut(BaseModel):
     hits: list[SearchHit]
     best_similarity: float
     confident: bool
+    reranked: bool = False
+    plan: SearchPlanOut | None = None

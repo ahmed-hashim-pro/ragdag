@@ -446,6 +446,9 @@ export class AskPage implements OnDestroy {
           void this.loadConversations(collectionId, true);
         }
         return key;
+      case 'plan':
+        this.patch(key, (m) => ({ ...m, usage: { ...m.usage, search: ev.data } }));
+        return key;
       case 'sources':
         this.patch(key, (m) => ({ ...m, sources: ev.data.sources ?? [] }));
         return key;

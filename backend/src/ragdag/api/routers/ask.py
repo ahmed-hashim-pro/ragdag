@@ -16,7 +16,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ragdag.answer import NO_EVIDENCE_ANSWER, citation_payload, stream_answer
+from ragdag.answer import NO_EVIDENCE_ANSWER, citation_payload, client_for, stream_answer
 from ragdag.api.deps import WorkspaceAccess, audit, limiter, viewer
 from ragdag.api.routers.workspaces import API_KEY_KIND
 from ragdag.api.schemas import (
@@ -27,11 +27,18 @@ from ragdag.api.schemas import (
     SearchHit,
     SearchIn,
     SearchOut,
+    SearchPlanOut,
 )
 from ragdag.collection_settings import CollectionSettings
 from ragdag.db import get_session, session_scope
 from ragdag.models import Collection, Conversation, Message, WorkspaceSecret
-from ragdag.retrieval import retrieve, retrieve_for_turn
+from ragdag.query import PlanUsage, QueryPlan, plan_query
+from ragdag.retrieval import (
+    Retrieved,
+    overview,
+    retrieve_for_turn,
+    retrieve_with_plan,
+)
 from ragdag.security import VaultError, decrypt_secret
 from ragdag.settings import get_settings
 
@@ -39,6 +46,47 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/w/{ws_id}", tags=["ask"])
 
 HISTORY_MESSAGES = 6
+
+
+CHITCHAT_ANSWER = (
+    "Hi! I answer questions about the documents in \u201c{collection}\u201d. Ask about "
+    "something they cover, or ask what the collection contains."
+)
+
+
+def _retrieve(
+    collection_id: uuid.UUID,
+    question: str,
+    previous_question: str | None,
+    plan: QueryPlan | None,
+    settings: CollectionSettings,
+) -> tuple[list[Retrieved], bool, str | None]:
+    """Passages for one turn, whether they clear the confidence gate, and a context note."""
+    with session_scope() as s:
+        if plan is not None and plan.intent == "overview":
+            passages, total = overview(s, collection_id)
+            note = (
+                f"These passages are overviews of {len(passages)} of the {total} documents in "
+                "the collection (title, section outline, opening text), not excerpts chosen "
+                "for the question. Answer about the collection as a whole and cite each "
+                "document you describe."
+            )
+            return passages, bool(passages), note
+        if plan is not None:
+            result = retrieve_with_plan(
+                s,
+                collection_id,
+                question,
+                plan.search_query,
+                plan.keywords,
+                settings.top_k,
+                settings.rerank,
+            )
+        else:
+            result = retrieve_for_turn(
+                s, collection_id, question, previous_question, settings.top_k, settings.rerank
+            )
+        return result.chunks, result.is_confident(settings.similarity_floor), None
 
 
 def _sse(event: str, data: dict[str, Any]) -> bytes:
@@ -88,8 +136,19 @@ async def search(
 ) -> SearchOut:
     coll = _collection(session, access, body.collection_id)
     settings = CollectionSettings.of(coll.settings)
-    result = await run_in_threadpool(retrieve, session, coll.id, body.query, body.top_k)
-    session.rollback()  # ends the read transaction holding the SET LOCALs
+    plan, plan_usage = None, PlanUsage()
+    if body.rewrite:
+        plan, plan_usage = await plan_query(
+            client=client_for(_api_key(session, access.id)),
+            history=[],
+            question=body.query,
+            collection=coll.name,
+        )
+    tuned = settings.model_copy(update={"top_k": body.top_k})
+    chunks, confident, _ = await run_in_threadpool(
+        _retrieve, coll.id, body.query, None, plan, tuned
+    )
+    best = max((c.similarity or 0.0 for c in chunks), default=0.0)
     return SearchOut(
         hits=[
             SearchHit(
@@ -101,11 +160,21 @@ async def search(
                 score=c.score,
                 similarity=c.similarity,
                 lexical=c.lexical,
+                rerank_score=c.rerank_score,
             )
-            for c in result.chunks
+            for c in chunks
         ],
-        best_similarity=result.best_similarity,
-        confident=result.is_confident(settings.similarity_floor),
+        best_similarity=best,
+        confident=confident,
+        reranked=settings.rerank and not (plan and plan.intent == "overview"),
+        plan=SearchPlanOut(
+            intent=plan.intent,
+            query=plan.search_query,
+            keywords=plan.keywords,
+            cost_usd=plan_usage.cost_usd,
+        )
+        if plan
+        else None,
     )
 
 
@@ -156,15 +225,18 @@ async def ask(
 
     user_msg = Message(conversation_id=conv.id, role="user", content=question)
     session.add(user_msg)
+    audit(
+        session,
+        "ask",
+        workspace_id=access.id,
+        user_id=access.user.id,
+        target=str(conv.id),
+        meta={"collection": coll.name},
+        request=request,
+    )
     session.commit()
     conv_id, user_msg_id = conv.id, user_msg.id
-
-    result = await run_in_threadpool(
-        retrieve_for_turn, session, coll.id, question, previous_question, settings.top_k
-    )
-    session.rollback()
-    chunks = result.chunks
-    confident = result.is_confident(settings.similarity_floor)
+    coll_id, coll_name = coll.id, coll.name
 
     async def events() -> AsyncIterator[bytes]:
         started = time.monotonic()
@@ -189,12 +261,52 @@ async def ask(
                     conv_row.updated_at = msg.created_at
                 return MessageOut.model_validate(msg).model_dump(mode="json")
 
+        # 1. Understand the question (Haiku), best-effort.
+        plan, plan_usage = None, PlanUsage()
+        if settings.rewrite_queries:
+            plan, plan_usage = await plan_query(
+                client=client_for(api_key),
+                history=history,
+                question=question,
+                collection=coll_name,
+            )
+        search_info = {
+            "planned": plan is not None,
+            "intent": plan.intent if plan else "lookup",
+            "query": plan.search_query if plan else question,
+            "keywords": plan.keywords if plan else [],
+            "reranked": settings.rerank,
+        }
+        yield _sse("plan", search_info)
+        extra_usage: dict[str, Any] = {"search": search_info}
+        if plan is not None:
+            extra_usage["planner"] = plan_usage.model_dump()
+
+        def finish_usage(answer_usage: dict) -> dict:
+            total = answer_usage.get("cost_usd", 0.0) + plan_usage.cost_usd
+            return {**answer_usage, **extra_usage, "cost_usd": round(total, 6)}
+
+        # 2. Retrieve: an outline of every document for overview questions, else search.
+        retrieval = await run_in_threadpool(
+            _retrieve, coll_id, question, previous_question, plan, settings
+        )
+        chunks, confident, context_note = retrieval
+        if plan is not None and plan.intent == "chitchat":
+            # Greetings and thanks get a fixed reply: no reason to pay for the big model.
+            text_ = CHITCHAT_ANSWER.format(collection=coll_name)
+            saved = await run_in_threadpool(save, text_, "chitchat", [], None, finish_usage({}))
+            yield _sse("delta", {"text": text_})
+            yield _sse("done", {"message": saved})
+            return
         if not confident:
-            saved = save(NO_EVIDENCE_ANSWER, "no_evidence", [], None, {})
+            saved = await run_in_threadpool(
+                save, NO_EVIDENCE_ANSWER, "no_evidence", [], None, finish_usage({})
+            )
             yield _sse("delta", {"text": NO_EVIDENCE_ANSWER})
-            yield _sse("done", {"message": saved, "best_similarity": result.best_similarity})
+            yield _sse("done", {"message": saved})
             return
 
+        # 3. Answer from the retrieved passages (Opus), streamed.
         candidates = citation_payload(chunks)
         yield _sse("sources", {"sources": candidates})
         partial: list[str] = []
@@ -205,6 +317,7 @@ async def ask(
                 question=question,
                 chunks=chunks,
                 effort=settings.effort,
+                context_note=context_note,
             ):
                 if ev.type == "delta":
                     partial.append(ev.data["text"])
@@ -220,33 +333,24 @@ async def ask(
                         ev.data["status"],
                         used,
                         ev.data["model"],
-                        ev.data["usage"],
+                        finish_usage(ev.data["usage"]),
                     )
                     yield _sse("done", {"message": saved})
         except anthropic.AuthenticationError:
             msg = "The workspace's Anthropic API key was rejected. An admin must update it."
-            await run_in_threadpool(save, msg, "error", [], None, {})
+            await run_in_threadpool(save, msg, "error", [], None, finish_usage({}))
             yield _sse("error", {"message": msg})
         except anthropic.RateLimitError:
             msg = "Anthropic rate limit reached. Try again in a minute."
-            await run_in_threadpool(save, msg, "error", [], None, {})
+            await run_in_threadpool(save, msg, "error", [], None, finish_usage({}))
             yield _sse("error", {"message": msg})
         except anthropic.APIError as exc:
             log.exception("answer failed")
             msg = f"The model request failed ({type(exc).__name__}). Try again."
-            await run_in_threadpool(save, "".join(partial) or msg, "error", [], None, {})
+            await run_in_threadpool(
+                save, "".join(partial) or msg, "error", [], None, finish_usage({})
+            )
             yield _sse("error", {"message": msg})
-
-    with session_scope() as s:
-        audit(
-            s,
-            "ask",
-            workspace_id=access.id,
-            user_id=access.user.id,
-            target=str(conv_id),
-            meta={"collection": coll.name, "confident": confident},
-            request=request,
-        )
 
     return StreamingResponse(
         events(),

@@ -9,6 +9,7 @@ from conftest import Api, invite, register
 
 from ragdag.answer import AnswerEvent
 from ragdag.ingest import pipeline
+from ragdag.query import PlanUsage, QueryPlan
 
 GUIDE = b"""# Meridian Handbook
 
@@ -298,6 +299,12 @@ def with_key(owner, monkeypatch):
     import ragdag.api.routers.workspaces as ws_router
 
     monkeypatch.setattr(ws_router, "check_api_key", ok)
+    import ragdag.api.routers.ask as ask_router
+
+    async def no_plan(**_):
+        return None, PlanUsage()
+
+    monkeypatch.setattr(ask_router, "plan_query", no_plan)
     resp = owner.put(f"/api/w/{owner.ws}/api-key", json={"api_key": "sk-ant-test-0123456789abcd"})
     assert resp.status_code == 200 and resp.json()["hint"] == "…abcd"
     assert "sk-ant" not in resp.text
@@ -307,7 +314,7 @@ def test_ask_streams_answer_with_valid_citations(owner, indexed, with_key, monke
     coll, _, _ = indexed
     seen = {}
 
-    async def fake_stream(*, api_key, history, question, chunks, effort):
+    async def fake_stream(*, api_key, history, question, chunks, effort, context_note=None):
         seen.update(api_key=api_key, n=len(chunks), history=list(history))
         yield AnswerEvent("delta", {"text": "It runs 9 hours [1]."})
         yield AnswerEvent(
@@ -331,7 +338,7 @@ def test_ask_streams_answer_with_valid_citations(owner, indexed, with_key, monke
     assert resp.status_code == 200
     events = _events(resp)
     kinds = [e for e, _ in events]
-    assert kinds == ["meta", "sources", "delta", "done"]
+    assert kinds == ["meta", "plan", "sources", "delta", "done"]
     assert seen["api_key"] == "sk-ant-test-0123456789abcd"
     done = events[-1][1]["message"]
     assert done["status"] == "ok" and done["citations"][0]["n"] == 1
@@ -441,3 +448,101 @@ def test_usage_reports_cost(owner, indexed, with_key, monkeypatch):
         f"/api/w/{owner.ws}/ask", json={"question": "battery hours", "collection_id": coll["id"]}
     )
     assert owner.get(f"/api/w/{owner.ws}/usage").json()["cost_usd"] == 0.014
+
+
+def _stub(monkeypatch, plan, captured):
+    import ragdag.api.routers.ask as ask_router
+
+    async def planner(**kwargs):
+        captured["planner_question"] = kwargs["question"]
+        return plan, PlanUsage(input_tokens=300, output_tokens=40, cost_usd=0.00005)
+
+    async def answer(**kwargs):
+        captured.update(kwargs)
+        yield AnswerEvent(
+            "done",
+            {
+                "status": "ok",
+                "answer": "x [1]",
+                "used": [1],
+                "usage": {"input_tokens": 1000, "output_tokens": 100, "cost_usd": 0.006},
+                "model": "m",
+            },
+        )
+
+    monkeypatch.setattr(ask_router, "plan_query", planner)
+    monkeypatch.setattr(ask_router, "stream_answer", answer)
+
+
+def test_planned_query_drives_search_and_cost(owner, indexed, with_key, monkeypatch):
+    coll, _, _ = indexed
+    captured = {}
+    plan = QueryPlan(
+        intent="lookup", search_query="What does error code E-417 mean?", keywords=["E-417"]
+    )
+    _stub(monkeypatch, plan, captured)
+    resp = owner.post(
+        f"/api/w/{owner.ws}/ask",
+        json={"question": "wat is that lidar eror?", "collection_id": coll["id"]},
+    )
+    events = _events(resp)
+    assert [e for e, _ in events][:2] == ["meta", "plan"]
+    assert events[1][1]["query"] == "What does error code E-417 mean?"
+    assert captured["chunks"][0].heading.endswith("Safety")
+    assert captured["chunks"][0].rerank_score is not None
+    usage = events[-1][1]["message"]["usage"]
+    assert usage["cost_usd"] == 0.00605 and usage["planner"]["input_tokens"] == 300
+
+
+def test_overview_question_gets_document_outlines(owner, indexed, with_key, monkeypatch):
+    coll, _, _ = indexed
+    captured = {}
+    _stub(monkeypatch, QueryPlan(intent="overview", search_query="What is in it?"), captured)
+    resp = owner.post(
+        f"/api/w/{owner.ws}/ask",
+        json={"question": "describe this collection", "collection_id": coll["id"]},
+    )
+    assert _events(resp)[-1][1]["message"]["status"] == "ok"
+    (passage,) = captured["chunks"]
+    assert passage.title == "Meridian Handbook" and "- Power" in passage.content
+    assert "overviews of 1 of the 1 documents" in captured["context_note"]
+
+
+def test_chitchat_is_answered_without_the_big_model(owner, indexed, with_key, monkeypatch):
+    coll, _, _ = indexed
+    captured = {}
+    _stub(monkeypatch, QueryPlan(intent="chitchat", search_query="hello"), captured)
+    resp = owner.post(
+        f"/api/w/{owner.ws}/ask", json={"question": "hello there!", "collection_id": coll["id"]}
+    )
+    message = _events(resp)[-1][1]["message"]
+    assert message["status"] == "chitchat" and "Handbook" in message["content"]
+    assert "chunks" not in captured  # Opus was never called
+
+
+def test_reranker_scores_the_relevant_passage_highest(owner, indexed):
+    from ragdag.db import session_scope
+    from ragdag.retrieval import retrieve
+
+    coll, _, _ = indexed
+    with session_scope() as s:
+        result = retrieve(
+            s, coll["id"], "what does it mean when the lidar is blocked", 2, rerank=True
+        )
+    assert result.chunks[0].heading.endswith("Safety")
+    assert result.chunks[0].rerank_score > result.chunks[1].rerank_score
+
+
+def test_search_playground_can_show_the_plan(owner, indexed, with_key, monkeypatch):
+    coll, _, _ = indexed
+    _stub(
+        monkeypatch,
+        QueryPlan(intent="lookup", search_query="battery runtime per charge", keywords=[]),
+        {},
+    )
+    body = owner.post(
+        f"/api/w/{owner.ws}/search",
+        json={"query": "how long it go", "collection_id": coll["id"], "rewrite": True},
+    ).json()
+    assert body["plan"]["query"] == "battery runtime per charge"
+    assert body["reranked"] is True and body["hits"][0]["heading"].endswith("Power")

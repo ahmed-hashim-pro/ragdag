@@ -76,7 +76,7 @@ class AnswerEvent:
 
 
 @lru_cache(maxsize=64)
-def _client(api_key: str) -> anthropic.AsyncAnthropic:
+def client_for(api_key: str) -> anthropic.AsyncAnthropic:
     return anthropic.AsyncAnthropic(api_key=api_key, max_retries=2, timeout=300)
 
 
@@ -103,6 +103,7 @@ def citation_payload(chunks: Sequence[Retrieved]) -> list[dict[str, Any]]:
             "heading": c.heading,
             "score": round(c.score, 5),
             "similarity": None if c.similarity is None else round(c.similarity, 4),
+            "rerank_score": None if c.rerank_score is None else round(c.rerank_score, 3),
             "snippet": c.content[:600],
         }
         for n, c in enumerate(chunks, start=1)
@@ -125,14 +126,18 @@ def clean_citations(answer: str, available: int) -> tuple[str, list[int]]:
 
 
 def build_messages(
-    history: Sequence[tuple[str, str]], question: str, chunks: Sequence[Retrieved]
+    history: Sequence[tuple[str, str]],
+    question: str,
+    chunks: Sequence[Retrieved],
+    context_note: str | None = None,
 ) -> list[dict[str, Any]]:
     """Prior turns are replayed as plain text (append-only); documents ride with the new turn."""
     messages: list[dict[str, Any]] = [{"role": r, "content": t} for r, t in history]
+    note = f"{context_note}\n\n" if context_note else ""
     messages.append(
         {
             "role": "user",
-            "content": f"{render_documents(chunks)}\n\nQuestion: {question}",
+            "content": f"{render_documents(chunks)}\n\n{note}Question: {question}",
         }
     )
     return messages
@@ -145,15 +150,16 @@ async def stream_answer(
     question: str,
     chunks: Sequence[Retrieved],
     effort: str,
+    context_note: str | None = None,
 ) -> AsyncIterator[AnswerEvent]:
     """Yield ``delta``/``reset`` events while streaming, then one ``done`` event."""
     settings = get_settings()
-    client = _client(api_key)
+    client = client_for(api_key)
     async with client.beta.messages.stream(
         model=settings.claude_model,
         max_tokens=settings.claude_max_tokens,
         system=[{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
-        messages=build_messages(history, question, chunks),
+        messages=build_messages(history, question, chunks, context_note),
         output_config={"effort": effort},
         # On a safety decline the API re-runs the request on Anthropic's recommended
         # fallback model inside the same call.
@@ -219,4 +225,4 @@ async def stream_answer(
 
 async def check_api_key(api_key: str) -> None:
     """Cheap validity probe used when an admin saves a key. Raises on a bad key."""
-    await _client(api_key).models.retrieve(get_settings().claude_model)
+    await client_for(api_key).models.retrieve(get_settings().claude_model)

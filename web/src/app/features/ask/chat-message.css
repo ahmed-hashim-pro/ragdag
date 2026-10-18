@@ -83,3 +83,8 @@
   margin-top: -6px;
   animation: blink 1s steps(2) infinite;
 }
+
+.searched {
+  margin: 0 0 0.4rem;
+  overflow-wrap: anywhere;
+}

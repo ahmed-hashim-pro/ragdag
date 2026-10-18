@@ -7,7 +7,7 @@ COPY src ./src
 RUN uv venv /opt/venv && VIRTUAL_ENV=/opt/venv uv pip install --no-cache '.[api]'
 # Bake the embedding model into the image: no download at runtime, works offline.
 ENV RAGDAG_EMBED_CACHE_DIR=/opt/models
-RUN /opt/venv/bin/python -c "from ragdag.ingest.embedder import warm_up; warm_up()"
+RUN /opt/venv/bin/python -c "from ragdag.ingest.embedder import warm_up; warm_up(); from ragdag.retrieval import warm_up_reranker; warm_up_reranker()"
 
 FROM python:3.12-slim
 RUN useradd --uid 50000 --gid 0 --create-home ragdag && mkdir -p /data && chown 50000:0 /data

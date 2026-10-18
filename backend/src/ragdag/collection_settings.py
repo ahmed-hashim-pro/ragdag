@@ -16,6 +16,10 @@ class CollectionSettings(BaseModel):
     # Below this best dense cosine similarity the question is refused without an API call.
     similarity_floor: float = Field(0.25, ge=0.0, le=1.0)
     effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
+    # Haiku rewrites each question into a self-contained search query first.
+    rewrite_queries: bool = True
+    # A local cross-encoder re-scores the top candidates before the best top_k are kept.
+    rerank: bool = True
 
     @model_validator(mode="after")
     def _overlap_smaller(self) -> CollectionSettings:
