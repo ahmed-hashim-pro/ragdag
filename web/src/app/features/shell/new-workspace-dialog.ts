@@ -25,7 +25,7 @@ import { ToastService } from '../../core/toast.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <dialog #dlg class="modal" aria-labelledby="nw-title" (close)="closed.emit()">
-      <form class="modal-inner" (ngSubmit)="create()">
+      <form class="modal-inner" (submit)="$event.preventDefault(); create()">
         <h2 id="nw-title" class="modal-title">New workspace</h2>
         <p class="modal-text">A workspace has its own collections, members, and Anthropic API key.</p>
         <label class="field">

@@ -18,7 +18,7 @@ import { ConfirmService } from '../../shared/confirm';
     <section class="card" aria-labelledby="general-h">
       <div class="card-head"><h2 id="general-h">Workspace</h2></div>
       <div class="card-body stack">
-        <form class="row row-wrap" (ngSubmit)="rename()" style="align-items: flex-end">
+        <form class="row row-wrap" (submit)="$event.preventDefault(); rename()" style="align-items: flex-end">
           <label class="field" style="flex: 1; min-width: 220px">
             <span class="label">Name</span>
             <input class="input" [formControl]="name" maxlength="120" [readOnly]="!ctx.isAdmin()" />

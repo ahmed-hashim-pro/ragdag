@@ -21,7 +21,7 @@ import { WorkspaceContext } from '../../core/workspace-context';
           You are not a member of any workspace yet. Create one to start adding documents — or ask a
           workspace admin to send you an invitation link.
         </p>
-        <form class="stack" (ngSubmit)="create()">
+        <form class="stack" (submit)="$event.preventDefault(); create()">
           <label class="field">
             <span class="label">Workspace name</span>
             <input class="input" [formControl]="name" maxlength="120" placeholder="e.g. Engineering" />

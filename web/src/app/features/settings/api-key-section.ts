@@ -45,7 +45,7 @@ import { formatDate } from '../../shared/format';
         }
 
         @if (ctx.isAdmin()) {
-          <form class="row row-wrap" (ngSubmit)="save()" style="align-items: flex-end">
+          <form class="row row-wrap" (submit)="$event.preventDefault(); save()" style="align-items: flex-end">
             <label class="field" style="flex: 1; min-width: 240px">
               <span class="label">{{ status()?.configured ? 'Replace key' : 'API key' }}</span>
               <input class="input mono" type="password" [formControl]="key" autocomplete="off" spellcheck="false"
