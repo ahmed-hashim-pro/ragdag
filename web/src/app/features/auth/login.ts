@@ -97,7 +97,7 @@ export class LoginPage implements OnInit {
       this.boot.set(b);
       if (b.needs_setup) this.mode.set('register');
     } catch (e) {
-      this.boot.set({ needs_setup: false, allow_signup: false });
+      this.boot.set({ needs_setup: false, allow_signup: false, max_upload_mb: 0, upload_extensions: [] });
       this.error.set(apiErrorMessage(e));
     }
   }

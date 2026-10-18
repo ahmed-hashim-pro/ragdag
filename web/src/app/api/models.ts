@@ -32,6 +32,8 @@ export interface ApiErrorBody {
 export interface BootstrapOut {
   needs_setup: boolean;
   allow_signup: boolean;
+  max_upload_mb: number;
+  upload_extensions: string[];
 }
 
 export interface RegisterIn {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -310,6 +311,7 @@ async def ask(
         candidates = citation_payload(chunks)
         yield _sse("sources", {"sources": candidates})
         partial: list[str] = []
+        finished = False
         try:
             async for ev in stream_answer(
                 api_key=api_key,
@@ -335,7 +337,20 @@ async def ask(
                         ev.data["model"],
                         finish_usage(ev.data["usage"]),
                     )
+                    finished = True
                     yield _sse("done", {"message": saved})
+        except (asyncio.CancelledError, GeneratorExit):
+            # The client stopped reading (Stop button, closed tab). Keep what arrived so
+            # the question is not left unanswered; awaiting is not allowed here.
+            if not finished:
+                save(
+                    "".join(partial).strip() or "(stopped before any text arrived)",
+                    "stopped",
+                    [],
+                    None,
+                    finish_usage({}),
+                )
+            raise
         except anthropic.AuthenticationError:
             msg = "The workspace's Anthropic API key was rejected. An admin must update it."
             await run_in_threadpool(save, msg, "error", [], None, finish_usage({}))

@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnDestroy, computed, inject, input,
 import { Subscription } from 'rxjs';
 
 import { DocumentsApi, UPLOAD_EXTENSIONS, isUploadable } from '../../api/documents.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { apiErrorMessage } from '../../api/errors';
 import { UploadResult } from '../../api/models';
 import { formatBytes } from '../../shared/format';
@@ -31,7 +32,7 @@ const CONCURRENCY = 2;
       <p><strong>Drop files here</strong> or
         <label class="link-btn">browse<input class="sr-only" type="file" multiple [accept]="accept" (change)="onPick($event)" /></label>
       </p>
-      <p class="subtle">{{ accept.split(',').join(' ') }}</p>
+      <p class="subtle">{{ accept.split(',').join(' ') }}@if (maxMb()) {<span> · up to {{ maxMb() }} MB each</span>}</p>
     </div>
 
     @if (items().length) {
@@ -66,11 +67,25 @@ const CONCURRENCY = 2;
 })
 export class UploadPanel implements OnDestroy {
   private readonly api = inject(DocumentsApi);
+  private readonly auth = inject(AuthService);
   readonly wsId = input.required<string>();
   readonly collectionId = input.required<string>();
   readonly uploaded = output<UploadResult>();
 
   protected readonly accept = UPLOAD_EXTENSIONS.join(',');
+  /** Server upload limit in bytes, known after the bootstrap call (null until then). */
+  private readonly maxBytes = signal<number | null>(null);
+  protected readonly maxMb = computed(() => {
+    const max = this.maxBytes();
+    return max === null ? null : Math.round(max / 1024 / 1024);
+  });
+
+  constructor() {
+    this.auth.bootstrap().subscribe({
+      next: (b) => this.maxBytes.set(b.max_upload_mb * 1024 * 1024),
+      error: () => {}, // the server still enforces the limit (413)
+    });
+  }
   protected readonly size = formatBytes;
   protected readonly dragging = signal(false);
   protected readonly items = signal<UploadItem[]>([]);
@@ -138,14 +153,13 @@ export class UploadPanel implements OnDestroy {
 
   private add(files: File[]): void {
     const fresh: UploadItem[] = files.map((file) => {
-      const ok = isUploadable(file.name);
-      return {
-        id: ++this.seq,
-        file,
-        state: ok ? 'queued' : 'error',
-        progress: 0,
-        message: ok ? '' : `Unsupported file type. Allowed: ${UPLOAD_EXTENSIONS.join(', ')}`,
-      };
+      const max = this.maxBytes();
+      const message = !isUploadable(file.name)
+        ? `Unsupported file type. Allowed: ${UPLOAD_EXTENSIONS.join(', ')}`
+        : max !== null && file.size > max
+          ? `Larger than the ${this.maxMb()} MB upload limit.`
+          : '';
+      return { id: ++this.seq, file, state: message ? 'error' : 'queued', progress: 0, message };
     });
     this.items.update((list) => [...list, ...fresh]);
     this.pump();

@@ -28,7 +28,9 @@ the lidar is blocked.
 
 
 def test_first_user_bootstraps_then_signup_is_invite_only(client):
-    assert client.get("/api/auth/bootstrap").json()["needs_setup"] is True
+    boot = client.get("/api/auth/bootstrap").json()
+    assert boot["needs_setup"] is True and boot["max_upload_mb"] == 50
+    assert ".pdf" in boot["upload_extensions"]
     owner = register(client, "owner@example.com")
     me = owner.get("/api/auth/me").json()
     assert me["memberships"][0]["role"] == "owner"
@@ -546,3 +548,59 @@ def test_search_playground_can_show_the_plan(owner, indexed, with_key, monkeypat
     ).json()
     assert body["plan"]["query"] == "battery runtime per charge"
     assert body["reranked"] is True and body["hits"][0]["heading"].endswith("Power")
+
+
+def test_stopping_mid_answer_saves_the_partial_text(owner, indexed, with_key, monkeypatch):
+    """Runs a real uvicorn server: TestClient does not report client disconnects."""
+    import asyncio
+    import socket
+    import threading
+    import time
+
+    import httpx
+    import uvicorn
+    from sqlalchemy import select
+
+    from ragdag.api.main import create_app
+    from ragdag.db import session_scope
+    from ragdag.models import Message
+
+    coll, _, _ = indexed
+
+    async def slow_stream(**_):
+        yield AnswerEvent("delta", {"text": "The robot runs "})
+        await asyncio.sleep(30)  # the client disconnects while we wait
+        yield AnswerEvent("delta", {"text": "never sent"})
+
+    import ragdag.api.routers.ask as ask_router
+
+    monkeypatch.setattr(ask_router, "stream_answer", slow_stream)
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    server = uvicorn.Server(uvicorn.Config(create_app(), port=port, log_level="warning"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    try:
+        for _ in range(100):
+            if server.started:
+                break
+            time.sleep(0.05)
+        http = httpx.Client(base_url=f"http://127.0.0.1:{port}", headers=owner.h)
+        body = {"question": "battery hours", "collection_id": coll["id"]}
+        with http.stream("POST", f"/api/w/{owner.ws}/ask", json=body) as r:
+            for line in r.iter_lines():
+                if "The robot runs" in line:
+                    break  # closing the stream here is what the Stop button does
+        http.close()
+        msg = None
+        for _ in range(100):
+            with session_scope() as s:
+                msg = s.scalar(select(Message).where(Message.role == "assistant"))
+            if msg is not None:
+                break
+            time.sleep(0.1)
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+    assert msg is not None and msg.status == "stopped" and msg.content == "The robot runs"

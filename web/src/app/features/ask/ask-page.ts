@@ -414,7 +414,7 @@ export class AskPage implements OnDestroy {
       );
     } catch (e) {
       if (abort.signal.aborted) {
-        this.patch(key, (m) => ({ ...m, status: 'stopped', notice: 'Stopped. This partial answer was not saved.' }));
+        this.patch(key, (m) => ({ ...m, status: 'stopped', notice: 'Stopped. The partial answer was saved to this conversation.' }));
         this.announce.set('Stopped.');
       } else if (e instanceof ApiError && e.status === 409) {
         this.apiKeyMissing.set(true);

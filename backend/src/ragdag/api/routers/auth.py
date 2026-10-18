@@ -25,6 +25,7 @@ from ragdag.api.schemas import (
     UserOut,
 )
 from ragdag.db import get_session
+from ragdag.ingest.extract import SUPPORTED_TYPES
 from ragdag.models import Invitation, Membership, RefreshToken, Role, User, Workspace
 from ragdag.security import (
     create_access_token,
@@ -112,7 +113,13 @@ def _join(session: Session, invite: Invitation, user: User) -> None:
 @router.get("/bootstrap", response_model=BootstrapOut)
 def bootstrap(session: Session = Depends(get_session)) -> BootstrapOut:
     has_users = session.scalar(select(func.count()).select_from(User)) > 0
-    return BootstrapOut(needs_setup=not has_users, allow_signup=get_settings().allow_signup)
+    settings = get_settings()
+    return BootstrapOut(
+        needs_setup=not has_users,
+        allow_signup=settings.allow_signup,
+        max_upload_mb=settings.max_upload_mb,
+        upload_extensions=sorted(SUPPORTED_TYPES),
+    )
 
 
 @router.get("/invite/{token}", response_model=InvitePreviewOut)

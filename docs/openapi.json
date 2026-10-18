@@ -2940,12 +2940,25 @@
      "allow_signup": {
       "type": "boolean",
       "title": "Allow Signup"
+     },
+     "max_upload_mb": {
+      "type": "integer",
+      "title": "Max Upload Mb"
+     },
+     "upload_extensions": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Upload Extensions"
      }
     },
     "type": "object",
     "required": [
      "needs_setup",
-     "allow_signup"
+     "allow_signup",
+     "max_upload_mb",
+     "upload_extensions"
     ],
     "title": "BootstrapOut"
    },

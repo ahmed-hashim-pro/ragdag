@@ -16,7 +16,7 @@ those documents, with numbered citations back to the exact passages.
  │ ragdag_ingest_document:                               │  │  pgvector HNSW cosine    │
  │   prepare → extract → chunk → embed_and_index →       │  │  + Postgres full-text    │
  │   finalize                                            │  │  → RRF fusion            │
- │ ragdag_reindex_collection · ragdag_maintenance        │  │ confidence gate          │
+ │ ragdag_reindex_collection · ragdag_maintenance        │  │ local rerank · gate      │
  └───────────────────────────┬───────────────────────────┘  │ Claude (streamed, [n])   │
                              ▼                              └────────────┬─────────────┘
                     Postgres 17 + pgvector  ◀────────────────────────────┘
@@ -32,9 +32,18 @@ those documents, with numbered citations back to the exact passages.
 - **Sources**: folders on the host (read-only mount) and web pages, polled on a per-source
   interval with SHA-256 change detection. URL fetches are blocked from reaching private
   addresses (SSRF guard).
-- **RAG that refuses to guess**: hybrid dense + keyword retrieval, a similarity floor that
-  refuses before any API call, retrieved text fenced as untrusted data, and citations checked
-  against what was actually retrieved.
+- **RAG that refuses to guess**: hybrid dense + keyword retrieval fused by RRF, a similarity
+  floor that refuses before any API call, retrieved text fenced as untrusted data, and
+  citations checked against what was actually retrieved.
+- **Question understanding**: Claude Haiku rewrites each question before searching. It fixes
+  typos, turns follow-ups like "and the second one?" into standalone questions, and pulls out
+  exact terms such as error codes. It also spots questions about the whole collection
+  ("what's in here?"), which are answered from an outline of every document, and replies to
+  greetings without calling the big model. It costs about $0.0001 a question.
+- **Reranking**: a local cross-encoder (`ms-marco-MiniLM-L-12-v2`) re-scores the top 30
+  matches before the best are sent to Claude. It's free and runs offline.
+- **Cost tracking**: every answer shows its token counts and estimated dollar cost, and the
+  workspace usage page totals them. Prices are configurable.
 - **Claude Opus 5.5**: answers stream over SSE. Each workspace has its own encrypted API key,
   and server-side refusal fallback is enabled.
 - **Local embeddings**: fastembed ONNX `all-MiniLM-L6-v2`, baked into the images, so

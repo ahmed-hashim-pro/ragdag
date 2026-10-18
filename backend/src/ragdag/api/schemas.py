@@ -77,6 +77,8 @@ class AcceptInviteIn(BaseModel):
 class BootstrapOut(BaseModel):
     needs_setup: bool
     allow_signup: bool
+    max_upload_mb: int
+    upload_extensions: list[str]
 
 
 # --------------------------------------------------------------------------- workspaces
