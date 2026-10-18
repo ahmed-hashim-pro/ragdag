@@ -10,7 +10,7 @@ Working name: `ragdag` (rename later with one search/replace).
 
 | Area | Choice |
 |---|---|
-| Host | Docker Compose on ubuntu-hub (medo-Ubuntu) |
+| Host | Docker Compose on a single Linux server |
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2, Alembic |
 | Frontend | Angular 22 (standalone components, signals), served by nginx |
 | Pipelines | Apache Airflow 3.3.2, LocalExecutor, FAB auth manager |
