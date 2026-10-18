@@ -1,5 +1,7 @@
 # ragdag
 
+[![CI](https://github.com/ahmed-hashim-pro/ragdag/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmed-hashim-pro/ragdag/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A self-hosted, multi-user knowledge base. Teams upload documents (or point it at
 folders and web pages); **Airflow DAGs** extract, chunk, embed and index them into
 **Postgres + pgvector**; members ask questions and **Claude** answers strictly from
