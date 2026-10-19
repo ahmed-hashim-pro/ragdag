@@ -124,8 +124,16 @@ function renderList(lines: string[], start: number, opts: MarkdownOptions): { ht
   const startNum = ordered ? parseInt(first[2], 10) : 1;
   const tag = ordered ? 'ol' : 'ul';
   const startAttr = ordered && startNum !== 1 ? ` start="${startNum}"` : '';
-  const body = items.map((it) => `<li>${renderBlocks(it, opts, true)}</li>`).join('');
-  return { html: `<${tag}${startAttr}>${body}</${tag}>`, next: i };
+  const body = items.map((it) => `<li dir="auto">${renderBlocks(it, opts, true)}</li>`).join('');
+  // dir="auto" on the list would ignore its items (they carry their own dir), so the
+  // list takes the direction of its first item's text: bullets go on the correct side.
+  return { html: `<${tag}${startAttr} dir="${textDirection(items[0]?.join(' ') ?? '')}">${body}</${tag}>`, next: i };
+}
+
+/** Direction of the first strongly directional character (Arabic and Hebrew are RTL). */
+export function textDirection(text: string): 'rtl' | 'ltr' {
+  const m = /[A-Za-z\u00C0-\u024F\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/.exec(text);
+  return m && /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/.test(m[0]) ? 'rtl' : 'ltr';
 }
 
 function renderBlocks(lines: string[], opts: MarkdownOptions, tight = false): string {
@@ -134,7 +142,7 @@ function renderBlocks(lines: string[], opts: MarkdownOptions, tight = false): st
   const flush = () => {
     if (!para.length) return;
     const inner = para.map((l) => renderInline(l.trim(), opts)).join('<br>');
-    out.push(tight && out.length === 0 ? inner : `<p>${inner}</p>`);
+    out.push(tight && out.length === 0 ? inner : `<p dir="auto">${inner}</p>`);
     para = [];
   };
 
@@ -165,7 +173,7 @@ function renderBlocks(lines: string[], opts: MarkdownOptions, tight = false): st
         i++;
       }
       const cls = lang ? ` class="language-${escapeHtml(lang)}"` : '';
-      out.push(`<pre><code${cls}>${escapeHtml(body.join('\n'))}</code></pre>`);
+      out.push(`<pre dir="ltr"><code${cls}>${escapeHtml(body.join('\n'))}</code></pre>`);
       continue;
     }
 
@@ -173,7 +181,7 @@ function renderBlocks(lines: string[], opts: MarkdownOptions, tight = false): st
     if (heading) {
       flush();
       const level = Math.min(heading[1].length + 2, 6);
-      out.push(`<h${level}>${renderInline(heading[2], opts)}</h${level}>`);
+      out.push(`<h${level} dir="auto">${renderInline(heading[2], opts)}</h${level}>`);
       i++;
       continue;
     }
@@ -192,7 +200,7 @@ function renderBlocks(lines: string[], opts: MarkdownOptions, tight = false): st
         inner.push(QUOTE.exec(lines[i])![1]);
         i++;
       }
-      out.push(`<blockquote>${renderBlocks(inner, opts)}</blockquote>`);
+      out.push(`<blockquote dir="auto">${renderBlocks(inner, opts)}</blockquote>`);
       continue;
     }
 

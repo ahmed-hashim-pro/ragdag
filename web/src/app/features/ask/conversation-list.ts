@@ -18,7 +18,7 @@ import { relativeTime } from '../../shared/format';
         @for (c of conversations(); track c.id) {
           <li class="conv" [class.active]="c.id === activeId()">
             <button type="button" class="conv-open" (click)="open.emit(c.id)" [attr.aria-current]="c.id === activeId() ? 'true' : null">
-              <span class="conv-name truncate">{{ c.title || 'Untitled' }}</span>
+              <span class="conv-name truncate" dir="auto">{{ c.title || 'Untitled' }}</span>
               <span class="subtle">{{ rel(c.updated_at) }}</span>
             </button>
             <button type="button" class="btn btn-ghost btn-icon btn-sm conv-del" [attr.aria-label]="'Delete conversation: ' + c.title"

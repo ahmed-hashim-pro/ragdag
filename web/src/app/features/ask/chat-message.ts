@@ -16,7 +16,7 @@ import { ChatMessage } from './chat-types';
     @if (m.role === 'user') {
       <div class="msg msg-user">
         <h3 class="sr-only">You asked</h3>
-        <p class="bubble">{{ m.content }}</p>
+        <p class="bubble" dir="auto">{{ m.content }}</p>
       </div>
     } @else {
       <div class="msg msg-assistant" [class.selected]="selected()" [attr.aria-busy]="m.status === 'streaming'"
@@ -27,7 +27,7 @@ import { ChatMessage } from './chat-types';
             @if (q.intent === 'overview') {
               Overview of the whole collection
             } @else {
-              Searched for “{{ q.query }}”
+              Searched for “<bdi>{{ q.query }}</bdi>”
               @if (q.keywords.length) {<span> · exact: {{ q.keywords.join(', ') }}</span>}
             }
           </p>

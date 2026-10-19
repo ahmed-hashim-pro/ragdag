@@ -135,7 +135,7 @@ function writeStorage(key: string, value: string): void {
 
           <form class="composer" (submit)="$event.preventDefault(); send()">
             <label class="sr-only" for="question">Your question</label>
-            <textarea id="question" #box class="textarea" rows="1" [value]="draft()" (input)="onInput($event)" (keydown)="onKeydown($event)"
+            <textarea id="question" #box class="textarea" rows="1" dir="auto" [value]="draft()" (input)="onInput($event)" (keydown)="onKeydown($event)"
               [attr.maxlength]="maxLen" placeholder="Ask a question about this collection…" aria-describedby="composer-hint"></textarea>
             @if (streaming()) {
               <button type="button" class="btn btn-danger" (click)="stop()">■ Stop</button>

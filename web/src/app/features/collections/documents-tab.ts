@@ -67,7 +67,7 @@ const POLL_MS = 3000;
                     <tr>
                       <td>
                         <button type="button" class="link-btn cell-title truncate" style="display: block; text-align: left; max-width: 340px"
-                          (click)="openChunks(d)" [title]="'View chunks of ' + d.title">{{ d.title }}</button>
+                          (click)="openChunks(d)" [title]="'View chunks of ' + d.title" dir="auto">{{ d.title }}</button>
                         <div class="subtle truncate" style="max-width: 340px">{{ d.filename }}</div>
                       </td>
                       <td class="nowrap muted">{{ size(d.size_bytes) }}</td>

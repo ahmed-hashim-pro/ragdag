@@ -58,7 +58,7 @@ describe('renderMarkdown — safety', () => {
 
 describe('renderMarkdown — formatting', () => {
   it('wraps paragraphs and keeps single line breaks', () => {
-    expect(renderMarkdown('one\ntwo\n\nthree')).toBe('<p>one<br>two</p><p>three</p>');
+    expect(renderMarkdown('one\ntwo\n\nthree')).toBe('<p dir="auto">one<br>two</p><p dir="auto">three</p>');
   });
 
   it('renders bold, italic and inline code', () => {
@@ -131,12 +131,22 @@ describe('renderMarkdown — citations', () => {
   });
 
   it('leaves [n] alone by default and inside code', () => {
-    expect(renderMarkdown('a [1]')).toBe('<p>a [1]</p>');
+    expect(renderMarkdown('a [1]')).toBe('<p dir="auto">a [1]</p>');
     expect(dom(renderMarkdown('`arr[1]`', { citations: 'all' })).querySelector('button')).toBeNull();
   });
 
   it('renders citations inside list items and bold text', () => {
     const el = dom(renderMarkdown('- **fact [2]**', { citations: 'all' }));
     expect(el.querySelector('li strong button.cite')!.getAttribute('data-cite')).toBe('2');
+  });
+});
+
+describe('renderMarkdown direction', () => {
+  it('lets each block pick its own direction, but keeps code left-to-right', () => {
+    const html = renderMarkdown('يعمل الروبوت **7.5 ساعات** [1].\n\n- بند\n\n```\ncode\n```', { citations: new Set([1]) });
+    expect(html).toContain('<p dir="auto">');
+    expect(html).toContain('<ul dir="rtl"><li dir="auto">');
+    expect(renderMarkdown('- item')).toContain('<ul dir="ltr">');
+    expect(html).toContain('<pre dir="ltr">');
   });
 });

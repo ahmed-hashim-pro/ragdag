@@ -20,10 +20,10 @@ import { Citation } from '../../api/models';
           <header class="row gap-sm">
             <span class="src-n" aria-hidden="true">{{ s.n }}</span>
             <a class="src-doc truncate" [routerLink]="['/w', wsId(), 'collections', collectionId(), 'documents']" [queryParams]="{ doc: s.document_id }"
-              [title]="s.title">{{ s.title }}</a>
+              [title]="s.title" dir="auto">{{ s.title }}</a>
           </header>
           @if (s.heading) {<p class="subtle src-heading">{{ s.heading }}</p>}
-          <p class="src-snippet">{{ s.snippet }}</p>
+          <p class="src-snippet" dir="auto">{{ s.snippet }}</p>
           <footer class="subtle mono">
             similarity {{ s.similarity === null ? '—' : s.similarity.toFixed(3) }} · score {{ s.score.toFixed(4) }}
           </footer>

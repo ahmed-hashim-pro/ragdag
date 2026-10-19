@@ -22,7 +22,7 @@ import { CollectionStore } from './collection-store';
         <div class="row row-wrap" style="align-items: flex-end">
           <label class="field" style="flex: 1 1 260px">
             <span class="label">Query</span>
-            <input class="input" type="search" formControlName="query" maxlength="2000" placeholder="Ask the way a user would…" />
+            <input class="input" type="search" formControlName="query" maxlength="2000" placeholder="Ask the way a user would…" dir="auto" />
           </label>
           <label class="field" style="width: 100px">
             <span class="label">Top k</span>
@@ -70,7 +70,7 @@ import { CollectionStore } from './collection-store';
                 <li class="card card-pad stack" style="gap: 8px">
                   <div class="row row-wrap small">
                     <strong class="nowrap">#{{ i + 1 }}</strong>
-                    <span class="cell-title truncate" style="flex: 1">{{ h.title }}</span>
+                    <span class="cell-title truncate" style="flex: 1" dir="auto">{{ h.title }}</span>
                     @if (h.rerank_score !== null && h.rerank_score !== undefined) {
                       <span class="mono nowrap" title="Re-ranker relevance (higher is better)">rerank {{ h.rerank_score.toFixed(2) }}</span>
                     }
@@ -78,8 +78,8 @@ import { CollectionStore } from './collection-store';
                     <span class="mono nowrap" title="Cosine similarity">sim {{ h.similarity === null ? '—' : h.similarity.toFixed(3) }}</span>
                     @if (h.lexical) {<app-badge value="info" tone="info" text="keyword match" />}
                   </div>
-                  @if (h.heading) {<div class="subtle">{{ h.heading }}</div>}
-                  <p class="small" style="white-space: pre-wrap; overflow-wrap: anywhere">{{ h.content }}</p>
+                  @if (h.heading) {<div class="subtle" dir="auto">{{ h.heading }}</div>}
+                  <p class="small" style="white-space: pre-wrap; overflow-wrap: anywhere" dir="auto">{{ h.content }}</p>
                 </li>
               }
             </ol>

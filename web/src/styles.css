@@ -629,7 +629,7 @@ kbd {
 .table td {
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
-  text-align: left;
+  text-align: start;
   vertical-align: middle;
 }
 .table th {
@@ -974,7 +974,7 @@ dialog::backdrop {
 }
 .md ul,
 .md ol {
-  padding-left: 1.4em;
+  padding-inline-start: 1.4em;
 }
 .md li + li {
   margin-top: 0.2em;
@@ -1012,8 +1012,8 @@ dialog::backdrop {
   white-space: pre;
 }
 .md blockquote {
-  border-left: 3px solid var(--border-strong);
-  padding-left: 12px;
+  border-inline-start: 3px solid var(--border-strong);
+  padding-inline-start: 12px;
   color: var(--fg-muted);
 }
 .md hr {

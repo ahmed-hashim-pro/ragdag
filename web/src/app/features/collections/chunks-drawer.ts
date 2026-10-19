@@ -35,10 +35,10 @@ import { formatBytes, formatDate, formatNumber } from '../../shared/format';
             <li class="card" style="padding: 12px 14px">
               <div class="row small" style="margin-bottom: 6px">
                 <strong>#{{ c.ordinal + 1 }}</strong>
-                <span class="muted truncate" style="flex: 1">{{ c.heading || '(no heading)' }}</span>
+                <span class="muted truncate" style="flex: 1" dir="auto">{{ c.heading || '(no heading)' }}</span>
                 <span class="subtle nowrap">{{ c.token_count }} tokens</span>
               </div>
-              <pre class="mono" style="white-space: pre-wrap; margin: 0; font-size: 0.82rem; overflow-wrap: anywhere">{{ c.content }}</pre>
+              <pre class="mono" dir="auto" style="white-space: pre-wrap; margin: 0; font-size: 0.82rem; overflow-wrap: anywhere">{{ c.content }}</pre>
             </li>
           } @empty {
             <li class="muted">No chunks yet — the document has not been indexed.</li>
