@@ -1,0 +1,48 @@
+{
+  "description": "Retrieval test set over evals/corpus. Each lookup case names the document and a heading fragment of the passage that answers it; offtopic cases must not clear the confidence gate.",
+  "cases": [
+    {"id": "en-runtime", "group": "en", "q": "How long does a Meridian-3 run on one charge?", "file": "product-specs.md", "heading": "Power and Charging"},
+    {"id": "en-charge-time", "group": "en", "q": "How long does charging from 20% to 80% take?", "file": "product-specs.md", "heading": "Power and Charging"},
+    {"id": "en-payload", "group": "en", "q": "What is the rated payload and what happens above it?", "file": "product-specs.md", "heading": "Physical and Payload"},
+    {"id": "en-offline", "group": "en", "q": "What does a robot do when it loses its network link?", "file": "product-specs.md", "heading": "Offline Autonomy"},
+    {"id": "en-lidar", "group": "en", "q": "How many lidar units does the robot have?", "file": "product-specs.md", "heading": "Safety Systems"},
+    {"id": "en-bank", "group": "en", "q": "How many robots can one bank of charging bays handle?", "file": "product-specs.md", "heading": "Capacity and Footprint"},
+    {"id": "en-outage-faq", "group": "en", "q": "What happens to robots during a network outage?", "file": "faq.md", "heading": "network outage"},
+    {"id": "en-old-docks", "group": "en", "q": "Can we reuse our Meridian-2 docks?", "file": "faq.md", "heading": "Meridian-2 docks"},
+    {"id": "en-409", "group": "en", "q": "Task cancellation returned 409, what should I do?", "file": "faq.md", "heading": "409"},
+    {"id": "en-rate-limits", "group": "en", "q": "What are the API rate limits?", "file": "api-reference.md", "heading": "Rate Limits"},
+    {"id": "en-webhook-sig", "group": "en", "q": "How are webhook deliveries signed?", "file": "api-reference.md", "heading": "Webhooks"},
+    {"id": "en-unreachable", "group": "en", "q": "What does the robot_unreachable error mean?", "file": "api-reference.md", "heading": "Error Codes"},
+    {"id": "en-estop", "group": "en", "q": "What should support do when an emergency stop is engaged?", "file": "support-runbook.md", "heading": "Emergency Stop"},
+    {"id": "en-dock-fault", "group": "en", "q": "A dock is reporting a fault, what is the procedure?", "file": "support-runbook.md", "heading": "Dock Fault"},
+    {"id": "en-oncall", "group": "en", "q": "When do new engineers join the on-call rotation?", "file": "onboarding-guide.md", "heading": "Rotation"},
+    {"id": "en-firmware", "group": "en", "q": "How are firmware updates rolled out to robots?", "file": "onboarding-guide.md", "heading": "Firmware Is Different"},
+    {"id": "en-warranty", "group": "en", "q": "How long is the warranty on a Meridian-3?", "file": "warranty-and-service.html", "heading": "Standard Warranty"},
+    {"id": "en-pressure-wash", "group": "en", "q": "Is pressure washing covered by the warranty?", "file": "warranty-and-service.html", "heading": "Exclusions"},
+    {"id": "en-premier", "group": "en", "q": "What is the on-site response time on the Premier plan?", "file": "warranty-and-service.html", "heading": "Service Levels"},
+    {"id": "en-treads", "group": "en", "q": "How often should drive-wheel treads be replaced?", "file": "maintenance-schedule.pdf", "heading": "Page"},
+    {"id": "en-torque", "group": "en", "q": "What torque for the payload deck bolts?", "file": "maintenance-schedule.pdf", "heading": "Page"},
+
+    {"id": "ar-return-window", "group": "ar->ar", "q": "ما هي مدة إرجاع الروبوت غير المستخدم؟", "file": "returns-policy-ar.md", "heading": "مدة الإرجاع"},
+    {"id": "ar-restocking", "group": "ar->ar", "q": "كم نسبة رسوم إعادة التخزين؟", "file": "returns-policy-ar.md", "heading": "مدة الإرجاع"},
+    {"id": "ar-parts", "group": "ar->ar", "q": "هل تُستبدل عجلات القيادة المعيبة مجانًا؟", "file": "returns-policy-ar.md", "heading": "الاستبدال"},
+    {"id": "ar-batteries", "group": "ar->ar", "q": "هل يمكن إرجاع البطاريات القديمة؟", "file": "returns-policy-ar.md", "heading": "غير المشمولة"},
+    {"id": "ar-how", "group": "ar->ar", "q": "كيف أقدم طلب إرجاع؟", "file": "returns-policy-ar.md", "heading": "طريقة تقديم الطلب"},
+
+    {"id": "aren-runtime", "group": "ar->en", "q": "كم ساعة يعمل الروبوت بشحنة واحدة؟", "file": "product-specs.md", "heading": "Power and Charging"},
+    {"id": "aren-warranty", "group": "ar->en", "q": "ما مدة الضمان على روبوت Meridian-3؟", "file": "warranty-and-service.html", "heading": "Standard Warranty"},
+    {"id": "aren-estop", "group": "ar->en", "q": "ماذا يفعل فريق الدعم عند تفعيل زر الإيقاف الطارئ؟", "file": "support-runbook.md", "heading": "Emergency Stop"},
+    {"id": "aren-rate", "group": "ar->en", "q": "ما هي حدود معدل الطلبات في واجهة البرمجة؟", "file": "api-reference.md", "heading": "Rate Limits"},
+    {"id": "aren-outage", "group": "ar->en", "q": "ماذا يحدث للروبوتات عند انقطاع الشبكة؟", "file": "faq.md", "heading": "network outage"},
+
+    {"id": "enar-return", "group": "en->ar", "q": "How many days do I have to return an unused robot?", "file": "returns-policy-ar.md", "heading": "مدة الإرجاع"},
+    {"id": "enar-parts", "group": "en->ar", "q": "Are defective spare parts exchanged for free?", "file": "returns-policy-ar.md", "heading": "الاستبدال"},
+    {"id": "enar-claim", "group": "en->ar", "q": "How do I submit a return request?", "file": "returns-policy-ar.md", "heading": "طريقة تقديم الطلب"},
+
+    {"id": "off-paris", "group": "offtopic", "q": "What is the capital of France?"},
+    {"id": "off-cake", "group": "offtopic", "q": "Give me a chocolate cake recipe"},
+    {"id": "off-football", "group": "offtopic", "q": "Who won the 2018 World Cup?"},
+    {"id": "off-ar-weather", "group": "offtopic", "q": "كيف حال الطقس في القاهرة اليوم؟"},
+    {"id": "off-ar-poem", "group": "offtopic", "q": "اكتب لي قصيدة عن البحر"}
+  ]
+}

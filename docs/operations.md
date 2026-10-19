@@ -21,7 +21,7 @@ Airflow's own UI is at `/airflow/` (user `admin`, password `AIRFLOW_ADMIN_PASSWO
 | Service | Role | Memory cap |
 |---|---|---|
 | `web` | nginx: TLS, SPA, reverse proxy for `/api` and `/airflow` | 256 MB |
-| `api` | FastAPI (2 workers); runs migrations on start | 2 GB |
+| `api` | FastAPI (1 worker); runs migrations on start | 3 GB |
 | `db` | Postgres 17 + pgvector; databases `ragdag` and `airflow` | 2 GB |
 | `airflow-apiserver` | Airflow UI + REST API (used by `api`) | 1.5 GB |
 | `airflow-scheduler` | schedules DAGs; LocalExecutor runs the tasks here | 3 GB |

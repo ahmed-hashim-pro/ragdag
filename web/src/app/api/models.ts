@@ -180,7 +180,7 @@ export interface CollectionSettings {
   chunk_overlap: number;
   /** 1–30, default 8 */
   top_k: number;
-  /** 0–1, default 0.25 */
+  /** 0–1, default 0.35 */
   similarity_floor: number;
   effort: Effort;
   /** Claude Haiku rewrites each question into a search query first. Default true. */
@@ -193,7 +193,7 @@ export const DEFAULT_COLLECTION_SETTINGS: CollectionSettings = {
   chunk_tokens: 400,
   chunk_overlap: 60,
   top_k: 8,
-  similarity_floor: 0.25,
+  similarity_floor: 0.35,
   effort: 'medium',
   rewrite_queries: true,
   rerank: true,

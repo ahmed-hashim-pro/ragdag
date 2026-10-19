@@ -6,7 +6,9 @@ import threading
 from collections.abc import Sequence
 from functools import lru_cache
 
-from ragdag.settings import EMBED_MODEL, get_settings
+import numpy as np
+
+from ragdag.settings import get_settings
 
 _lock = threading.Lock()
 
@@ -15,8 +17,9 @@ _lock = threading.Lock()
 def _model():
     from fastembed import TextEmbedding
 
-    cache = get_settings().embed_cache_dir
-    return TextEmbedding(model_name=EMBED_MODEL, cache_dir=str(cache) if cache else None)
+    settings = get_settings()
+    cache = settings.embed_cache_dir
+    return TextEmbedding(model_name=settings.embed_model, cache_dir=str(cache) if cache else None)
 
 
 def embed_texts(texts: Sequence[str], batch_size: int = 64) -> list[list[float]]:
@@ -25,7 +28,13 @@ def embed_texts(texts: Sequence[str], batch_size: int = 64) -> list[list[float]]
         return []
     with _lock:  # ONNX sessions are thread-safe, but loading is not
         model = _model()
-    return [vec.tolist() for vec in model.embed(list(texts), batch_size=batch_size)]
+    # Normalised here because not every model does it itself; search uses cosine
+    # distance, which does not depend on length, but unit vectors keep scores comparable.
+    out = []
+    for vec in model.embed(list(texts), batch_size=batch_size):
+        norm = float(np.linalg.norm(vec)) or 1.0
+        out.append((vec / norm).tolist())
+    return out
 
 
 def embed_query(text: str) -> list[float]:

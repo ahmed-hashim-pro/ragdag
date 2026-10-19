@@ -34,7 +34,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .cache/fastembed
-          key: fastembed-all-MiniLM-L6-v2
+          key: fastembed-multilingual-MiniLM-L12-v2-bge-reranker-v2-m3-int8
       - run: uv venv -p 3.12 .venv && uv pip install -p .venv -e '.[api,dev]'
       - run: .venv/bin/ruff check src tests && .venv/bin/ruff format --check src tests
       - run: .venv/bin/pytest -q -p no:logging

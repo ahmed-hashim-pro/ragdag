@@ -137,7 +137,7 @@ export class CollectionSettingsTab {
       chunk_tokens: [400, [Validators.required, Validators.min(100), Validators.max(2000)]],
       chunk_overlap: [60, [Validators.required, Validators.min(0), Validators.max(500)]],
       top_k: [8, [Validators.required, Validators.min(1), Validators.max(30)]],
-      similarity_floor: [0.25, [Validators.required, Validators.min(0), Validators.max(1)]],
+      similarity_floor: [0.35, [Validators.required, Validators.min(0), Validators.max(1)]],
       effort: ['medium' as Effort, Validators.required],
       rewrite_queries: [true],
       rerank: [true],

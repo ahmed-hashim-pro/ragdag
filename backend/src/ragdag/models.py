@@ -273,9 +273,13 @@ class Chunk(Base):
     embedding: Mapped[list[float]] = mapped_column(Vector(EMBED_DIM))
     tsv: Mapped[str] = mapped_column(
         TSVECTOR,
+        # Indexed under both the English and the Arabic configuration, so either
+        # language's words match stemmed; queries are split by script (retrieval.py).
         Computed(
             "setweight(to_tsvector('english', coalesce(heading, '')), 'A') || "
-            "setweight(to_tsvector('english', content), 'B')",
+            "setweight(to_tsvector('arabic', coalesce(heading, '')), 'A') || "
+            "setweight(to_tsvector('english', content), 'B') || "
+            "setweight(to_tsvector('arabic', content), 'B')",
             persisted=True,
         ),
     )

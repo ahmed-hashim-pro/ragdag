@@ -35,7 +35,8 @@ for information.
 - search_query: the new message rewritten as one self-contained question. Resolve \
 pronouns and follow-ups ("and the second one?", "what about pricing?") using the \
 conversation. Fix obvious typos. Keep the user's specific names, numbers, codes \
-and terms exactly. Do not add facts or guess answers.
+and terms exactly. Write it in the same language as the new message. Do not add \
+facts or guess answers.
 - keywords: up to 6 exact terms from the message or conversation that should \
 appear verbatim in a relevant passage: product names, error codes, identifiers, \
 field names. Empty when there are none.

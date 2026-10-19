@@ -14,7 +14,9 @@ class CollectionSettings(BaseModel):
     chunk_overlap: int = Field(60, ge=0, le=500)
     top_k: int = Field(8, ge=1, le=30)
     # Below this best dense cosine similarity the question is refused without an API call.
-    similarity_floor: float = Field(0.25, ge=0.0, le=1.0)
+    # Tuned on evals/ for the multilingual model: answerable questions score >= 0.43,
+    # off-topic ones <= 0.22.
+    similarity_floor: float = Field(0.35, ge=0.0, le=1.0)
     effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
     # Haiku rewrites each question into a self-contained search query first.
     rewrite_queries: bool = True

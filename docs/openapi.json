@@ -3137,7 +3137,7 @@
       "maximum": 1.0,
       "minimum": 0.0,
       "title": "Similarity Floor",
-      "default": 0.25
+      "default": 0.35
      },
      "effort": {
       "type": "string",

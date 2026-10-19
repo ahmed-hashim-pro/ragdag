@@ -77,8 +77,11 @@ async def lifespan(app: FastAPI):
     if settings.env != "test":
         await run_in_threadpool(run_migrations)
         from ragdag.ingest.embedder import warm_up
+        from ragdag.retrieval import warm_up_reranker
 
+        # Load both models now, so the first question does not pay for it (~10 s).
         await run_in_threadpool(warm_up)
+        await run_in_threadpool(warm_up_reranker)
     settings.uploads_dir.mkdir(parents=True, exist_ok=True)
     log.info("ragdag api started", extra={"path": settings.public_url})
     yield

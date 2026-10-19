@@ -58,4 +58,5 @@ ignore = ["B008"]  # FastAPI Depends() in defaults
 testpaths = ["tests"]
 addopts = "-q"
 asyncio_mode = "auto"
+markers = ["eval: retrieval quality gate over evals/ (slow: indexes a corpus, loads models)"]
 filterwarnings = ["ignore::DeprecationWarning"]

@@ -22,10 +22,28 @@ import anthropic
 from ragdag.retrieval import Retrieved
 from ragdag.settings import get_settings
 
-NO_EVIDENCE_ANSWER = (
-    "I don't know — the documents in this collection don't contain enough relevant "
-    "information to answer that."
-)
+NO_EVIDENCE_ANSWERS = {
+    "en": (
+        "I don't know — the documents in this collection don't contain enough relevant "
+        "information to answer that."
+    ),
+    "ar": "لا أعرف — لا تحتوي مستندات هذه المجموعة على معلومات كافية للإجابة عن ذلك.",
+}
+NO_EVIDENCE_ANSWER = NO_EVIDENCE_ANSWERS["en"]
+
+_ARABIC_LETTER = re.compile(r"[\u0600-\u06FF]")
+
+
+def question_language(text: str) -> str:
+    """'ar' when the text is mostly Arabic script, else 'en' (the two supported UI languages)."""
+    letters = [c for c in text if c.isalpha()]
+    arabic = sum(1 for c in letters if _ARABIC_LETTER.match(c))
+    return "ar" if letters and arabic / len(letters) > 0.5 else "en"
+
+
+def no_evidence_answer(question: str) -> str:
+    return NO_EVIDENCE_ANSWERS[question_language(question)]
+
 
 SYSTEM_PROMPT = """\
 You answer questions for the members of a workspace, strictly from the documents \
@@ -58,8 +76,18 @@ filler. If the passages do not support an answer, reply with exactly:
 I don't know — the documents in this collection don't contain enough relevant \
 information to answer that.
 
+For a question asked in Arabic, reply instead with exactly:
+
+لا أعرف — لا تحتوي مستندات هذه المجموعة على معلومات كافية للإجابة عن ذلك.
+
 If they answer only part of the question, answer that part with citations and \
 say plainly which part is not covered.
+
+# Language
+
+Answer in the language of the user's question, even when the passages are in \
+another language. Keep product names, codes, field names and figures exactly as \
+the passages write them.
 
 # Style
 
@@ -208,7 +236,8 @@ async def stream_answer(
         return
 
     answer, used = clean_citations(raw, len(chunks))
-    status = "no_evidence" if answer.startswith("I don't know") and not used else "ok"
+    refused = answer.startswith(("I don't know", "لا أعرف"))
+    status = "no_evidence" if refused and not used else "ok"
     if final.stop_reason == "max_tokens":
         answer += "\n\n_(answer truncated)_"
     yield AnswerEvent(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import threading
 import uuid
 from collections.abc import Sequence
@@ -16,7 +17,6 @@ from ragdag.settings import get_settings
 
 RRF_K = 60
 CANDIDATES = 40
-RERANK_POOL = 30
 
 _DENSE_SQL = text(
     """
@@ -29,12 +29,15 @@ _DENSE_SQL = text(
 )
 
 # Questions are matched with OR semantics over their stemmed lexemes; the stored
-# tsvector weights headings (A) above body text (B).
+# tsvector weights headings (A) above body text (B). Arabic words go through the
+# Arabic configuration (its stemmer and stopwords), everything else through English.
+_QUERY_LEXEMES = (
+    "tsvector_to_array(to_tsvector('english', :latin) || to_tsvector('arabic', :arabic))"
+)
 _LEXICAL_SQL = text(
-    """
+    f"""
     WITH q AS (
-        SELECT to_tsquery('simple', array_to_string(
-            tsvector_to_array(to_tsvector('english', :question)), ' | ')) AS query
+        SELECT to_tsquery('simple', array_to_string({_QUERY_LEXEMES}, ' | ')) AS query
     )
     SELECT c.id, ts_rank_cd(c.tsv, q.query, 32) AS rank
     FROM chunks c JOIN documents d ON d.id = c.document_id, q
@@ -80,19 +83,25 @@ class RetrievalResult:
             return False
         if self.best_similarity >= floor:
             return True
-        return self.lexical_hits > 0 and self.best_similarity >= floor * 0.6
+        return self.lexical_hits > 0 and self.best_similarity >= floor * 0.75
 
 
-def _has_lexemes(session: Session, question: str) -> bool:
-    return bool(
-        session.execute(
-            text("SELECT length(to_tsvector('english', :q)) > 0"), {"q": question}
-        ).scalar()
-    )
+_ARABIC_WORD = re.compile(r"[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+")
+
+
+def split_by_script(text_: str) -> dict[str, str]:
+    """Separate Arabic-script words from the rest, for per-language full-text parsing."""
+    arabic = " ".join(_ARABIC_WORD.findall(text_))
+    return {"arabic": arabic, "latin": _ARABIC_WORD.sub(" ", text_)}
+
+
+def _has_lexemes(session: Session, parts: dict[str, str]) -> bool:
+    return bool(session.execute(text(f"SELECT cardinality({_QUERY_LEXEMES}) > 0"), parts).scalar())
 
 
 def _ranked_lists(session: Session, collection_id: uuid.UUID, query: str) -> tuple[list, list]:
     """Dense and lexical candidate lists for one query, best first."""
+    parts = split_by_script(query)
     vec = embed_query(query)
     vec_literal = "[" + ",".join(f"{x:.6f}" for x in vec) + "]"
     # pgvector >= 0.8: keep scanning the HNSW graph until enough rows pass the filter.
@@ -102,10 +111,8 @@ def _ranked_lists(session: Session, collection_id: uuid.UUID, query: str) -> tup
         _DENSE_SQL, {"vec": vec_literal, "cid": collection_id, "n": CANDIDATES}
     ).all()
     lexical = (
-        session.execute(
-            _LEXICAL_SQL, {"question": query, "cid": collection_id, "n": CANDIDATES}
-        ).all()
-        if _has_lexemes(session, query)
+        session.execute(_LEXICAL_SQL, {**parts, "cid": collection_id, "n": CANDIDATES}).all()
+        if _has_lexemes(session, parts)
         else []
     )
     return dense, lexical
@@ -122,7 +129,7 @@ def search(
 
     Every query contributes a dense and a lexical ranked list; all lists are fused
     by reciprocal rank fusion. With ``rerank_query`` the fused pool (top
-    ``RERANK_POOL``) is re-scored by a local cross-encoder against that query and
+    settings.rerank_pool) is re-scored by a local cross-encoder against that query and
     the best ``top_k`` kept; otherwise the RRF order stands.
     """
     queries = list(dict.fromkeys(q.strip() for q in queries if q and q.strip()))
@@ -144,7 +151,7 @@ def search(
         # exact-term match (an error code, a part number) only one retriever found.
         anchors += [r[0].id for r in (dense, lexical) if r]
 
-    pool_size = max(RERANK_POOL, top_k) if rerank_query else top_k
+    pool_size = max(get_settings().rerank_pool, top_k) if rerank_query else top_k
     ranked = sorted(scores, key=scores.__getitem__, reverse=True)[:pool_size]
     anchors = list(dict.fromkeys(anchors))
     for anchor in anchors:
@@ -264,7 +271,8 @@ def rerank_scores(query: str, chunks: Sequence[Retrieved]) -> list[float]:
     """Cross-encoder relevance of each chunk to ``query`` (higher is better)."""
     with _rerank_lock:  # loading is not thread-safe
         model = _cross_encoder()
-    docs = [f"{c.heading}\n{c.content}" if c.heading else c.content for c in chunks]
+    limit = get_settings().rerank_max_chars
+    docs = [(f"{c.heading}\n{c.content}" if c.heading else c.content)[:limit] for c in chunks]
     return [float(s) for s in model.rerank(query, docs, batch_size=32)]
 
 

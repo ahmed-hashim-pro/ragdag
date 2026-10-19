@@ -118,7 +118,8 @@ def test_confidence_gate():
     chunk = _chunk("c")
     assert RetrievalResult([chunk], 0.5, 0).is_confident(0.3)
     assert not RetrievalResult([chunk], 0.1, 0).is_confident(0.3)
-    assert RetrievalResult([chunk], 0.2, 2).is_confident(0.3)  # lexical props up a near miss
+    assert RetrievalResult([chunk], 0.25, 2).is_confident(0.3)  # lexical props up a near miss
+    assert not RetrievalResult([chunk], 0.2, 2).is_confident(0.3)  # but not a weak one
     assert not RetrievalResult([], 0.9, 1).is_confident(0.3)
 
 
@@ -171,3 +172,30 @@ def test_cost_estimate_uses_configured_prices():
     usage = {"input_tokens": 2181, "output_tokens": 290}
     assert get_settings().cost_usd(usage) == round(2181 * 4 / 1e6 + 290 * 20 / 1e6, 6)
     assert get_settings().cost_usd({"cache_read_input_tokens": 1_000_000}) == 0.2
+
+
+def test_language_detection_and_refusals():
+    from ragdag.answer import no_evidence_answer, question_language
+
+    assert question_language("كم ساعة يعمل الروبوت بشحنة واحدة؟") == "ar"
+    assert question_language("ما مدة الضمان على روبوت Meridian-3؟") == "ar"
+    assert question_language("How long is the warranty?") == "en"
+    assert question_language("123 ?") == "en"
+    assert no_evidence_answer("ما هذا؟").startswith("لا أعرف")
+
+
+def test_split_by_script_routes_words_to_their_language():
+    from ragdag.retrieval import split_by_script
+
+    parts = split_by_script("ما مدة الضمان على روبوت Meridian-3؟")
+    assert parts["arabic"].startswith("ما مدة الضمان على روبوت")
+    assert "Meridian-3" in parts["latin"] and "الضمان" not in parts["latin"]
+
+
+def test_embeddings_are_unit_length():
+    import math
+
+    from ragdag.ingest.embedder import embed_texts
+
+    for vec in embed_texts(["battery life", "مدة الضمان"]):
+        assert math.isclose(math.sqrt(sum(x * x for x in vec)), 1.0, rel_tol=1e-5)

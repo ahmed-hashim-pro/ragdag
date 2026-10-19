@@ -8,7 +8,7 @@ from pathlib import Path
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+# The vector column is fixed at this size: any embedding model must produce it.
 EMBED_DIM = 384
 
 
@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     data_dir: Path = Path("/data")
     max_upload_mb: int = 50
     embed_cache_dir: Path | None = None
+    # Changing the embedding model requires re-indexing every collection (`make reindex-all`).
+    embed_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
     airflow_url: str = "http://airflow-apiserver:8080"
     airflow_username: str = "ragdag-service"
@@ -48,7 +50,11 @@ class Settings(BaseSettings):
     planner_model: str = "claude-haiku-5-5"
     planner_price_input_per_mtok: float = 0.10
     planner_price_output_per_mtok: float = 0.50
-    reranker_model: str = "Xenova/ms-marco-MiniLM-L-12-v2"
+    # Multilingual cross-encoder (Apache-2.0). It is CPU-heavy: latency grows with the pool
+    # size and passage length, so only the top candidates are re-scored, trimmed.
+    reranker_model: str = "BAAI/bge-reranker-v2-m3-int8"
+    rerank_pool: int = 12
+    rerank_max_chars: int = 800
     login_rate_per_minute: int = 10
     ask_rate_per_minute: int = 30
 

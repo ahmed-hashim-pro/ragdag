@@ -93,7 +93,9 @@ services:
         condition: service_healthy
       data-perms:
         condition: service_completed_successfully
-    mem_limit: 2g
+    # One worker process holds the embedding model and the multilingual reranker
+    # (~1.7 GB); model inference runs outside the GIL, so it serves requests concurrently.
+    mem_limit: 3g
 
   web:
     build: web

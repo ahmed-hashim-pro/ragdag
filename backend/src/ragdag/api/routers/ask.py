@@ -17,7 +17,13 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ragdag.answer import NO_EVIDENCE_ANSWER, citation_payload, client_for, stream_answer
+from ragdag.answer import (
+    citation_payload,
+    client_for,
+    no_evidence_answer,
+    question_language,
+    stream_answer,
+)
 from ragdag.api.deps import WorkspaceAccess, audit, limiter, viewer
 from ragdag.api.routers.workspaces import API_KEY_KIND
 from ragdag.api.schemas import (
@@ -49,10 +55,16 @@ router = APIRouter(prefix="/w/{ws_id}", tags=["ask"])
 HISTORY_MESSAGES = 6
 
 
-CHITCHAT_ANSWER = (
-    "Hi! I answer questions about the documents in \u201c{collection}\u201d. Ask about "
-    "something they cover, or ask what the collection contains."
-)
+CHITCHAT_ANSWERS = {
+    "en": (
+        "Hi! I answer questions about the documents in \u201c{collection}\u201d. Ask about "
+        "something they cover, or ask what the collection contains."
+    ),
+    "ar": (
+        "مرحبًا! أجيب عن الأسئلة حول المستندات في \u201c{collection}\u201d. اسأل عن شيء "
+        "تتناوله، أو اسأل عمّا تحتويه المجموعة."
+    ),
+}
 
 
 def _retrieve(
@@ -294,16 +306,17 @@ async def ask(
         chunks, confident, context_note = retrieval
         if plan is not None and plan.intent == "chitchat":
             # Greetings and thanks get a fixed reply: no reason to pay for the big model.
-            text_ = CHITCHAT_ANSWER.format(collection=coll_name)
+            text_ = CHITCHAT_ANSWERS[question_language(question)].format(collection=coll_name)
             saved = await run_in_threadpool(save, text_, "chitchat", [], None, finish_usage({}))
             yield _sse("delta", {"text": text_})
             yield _sse("done", {"message": saved})
             return
         if not confident:
+            refusal = no_evidence_answer(question)
             saved = await run_in_threadpool(
-                save, NO_EVIDENCE_ANSWER, "no_evidence", [], None, finish_usage({})
+                save, refusal, "no_evidence", [], None, finish_usage({})
             )
-            yield _sse("delta", {"text": NO_EVIDENCE_ANSWER})
+            yield _sse("delta", {"text": refusal})
             yield _sse("done", {"message": saved})
             return
 

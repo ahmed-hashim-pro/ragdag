@@ -3,7 +3,7 @@ SHELL := /bin/bash
 COMPOSE := docker compose
 NODE := source ~/.nvm/nvm.sh >/dev/null && nvm use 22.23.3 >/dev/null &&
 
-.PHONY: help setup up down logs ps test test-backend test-dags test-web lint devdb build backup restore-check
+.PHONY: help setup up down logs ps test test-backend test-dags test-web lint devdb build backup reindex-all eval
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -26,6 +26,14 @@ ps: ## Service status
 
 logs: ## Follow logs
 	$(COMPOSE) logs -f --tail=100
+
+reindex-all: ## Re-embed every collection (needed after changing the embedding model)
+	$(COMPOSE) exec api python -m ragdag.manage reindex-all
+
+eval: ## Retrieval quality report on the test set in evals/ (needs `make devdb`)
+	cd backend && RAGDAG_DATABASE_URL=postgresql+psycopg://ragdag:ragdag@127.0.0.1:55432/ragdag \
+	  RAGDAG_DATA_DIR=$$(mktemp -d) .venv/bin/python -m ragdag.evals \
+	  --corpus ../evals/corpus --cases ../evals/retrieval_cases.json
 
 backup: ## Take a backup right now
 	$(COMPOSE) exec backup /backup.sh now

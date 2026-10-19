@@ -40,8 +40,16 @@ those documents, with numbered citations back to the exact passages.
   exact terms such as error codes. It also spots questions about the whole collection
   ("what's in here?"), which are answered from an outline of every document, and replies to
   greetings without calling the big model. It costs about $0.0001 a question.
-- **Reranking**: a local cross-encoder (`ms-marco-MiniLM-L-12-v2`) re-scores the top 30
-  matches before the best are sent to Claude. It's free and runs offline.
+- **English and Arabic**: multilingual embeddings (`paraphrase-multilingual-MiniLM-L12-v2`)
+  and Arabic-aware full-text search (Postgres's Arabic stemmer and stopwords) match questions
+  to documents in either language, including across languages. Claude answers in the
+  language of the question.
+- **Reranking**: a local multilingual cross-encoder (`bge-reranker-v2-m3`, Apache-2.0)
+  re-scores the top 12 matches before the best are sent to Claude. It's free and runs
+  offline, adding about 2 s per question on a 12-core CPU.
+- **Search-quality test set**: `evals/` has 39 questions in English and Arabic, including
+  cross-language and off-topic ones. `make eval` prints how well search does on them, and a
+  test fails CI if quality drops.
 - **Cost tracking**: every answer shows its token counts and estimated dollar cost, and the
   workspace usage page totals them. Prices are configurable.
 - **Claude Opus 5.5**: answers stream over SSE. Each workspace has its own encrypted API key,

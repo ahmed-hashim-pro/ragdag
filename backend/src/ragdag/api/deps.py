@@ -104,7 +104,7 @@ def audit(
 
 
 class RateLimiter:
-    """Sliding-window limiter, per process. The API runs one process per container."""
+    """Sliding-window limiter, per process. The API runs a single worker process."""
 
     def __init__(self) -> None:
         self._hits: dict[str, deque[float]] = defaultdict(deque)
